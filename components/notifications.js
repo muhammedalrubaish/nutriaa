@@ -157,7 +157,12 @@ export function PushToggle() {
       setState('denied')
       return
     }
-    navigator.serviceWorker.ready
+    // Hide the toggle when the server has no VAPID keys configured.
+    fetch('/api/push/vapid-key')
+      .then((r) => {
+        if (!r.ok) throw new Error('push disabled')
+        return navigator.serviceWorker.ready
+      })
       .then((reg) => reg.pushManager.getSubscription().then((s) => setState(s ? 'subscribed' : 'unsubscribed')))
       .catch(() => setState('unsupported'))
   }, [])
