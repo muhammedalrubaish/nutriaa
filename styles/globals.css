@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 241 245 249;
+  --surface: 255 255 255;
+  --surface-2: 248 250 252;
+  --border: 226 232 240;
+  --text: 15 23 42;
+  --muted: 100 116 139;
+  --input: 255 255 255;
+}
+.dark {
+  --bg: 8 28 68;
+  --surface: 11 38 85;
+  --surface-2: 6 22 55;
+  --border: 18 55 115;
+  --text: 236 244 255;
+  --muted: 155 190 235;
+  --input: 6 22 55;
+}
+
+@layer components {
+  .app-bg {
+    background-color: rgb(var(--bg));
+    color: rgb(var(--text));
+  }
+  .card {
+    background-color: rgb(var(--surface));
+  }
+  .card,
+  .card-2 {
+    border: 1px solid rgb(var(--border));
+  }
+  .card-2 {
+    background-color: rgb(var(--surface-2));
+  }
+  .muted {
+    color: rgb(var(--muted));
+  }
+  .border-token {
+    border-color: rgb(var(--border));
+  }
+  .field {
+    background-color: rgb(var(--input));
+    border: 1px solid rgb(var(--border));
+    color: rgb(var(--text));
+  }
+  .field:focus {
+    outline: none;
+    border-color: #10b981;
+  }
+}
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+  }
+}
+
+html,
+body {
+  font-family: Cairo, system-ui, -apple-system, Segoe UI, Tahoma, Arial, sans-serif;
+}
+body {
+  background-color: rgb(var(--bg));
+}
+body,
+select option {
+  color: rgb(var(--text));
+}
+select option {
+  background-color: rgb(var(--surface));
+}
+.dark input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0.7);
+  cursor: pointer;
+}
