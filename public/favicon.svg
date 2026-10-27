@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- خلفية زرقاء غامقة -->
+  <rect width="100" height="100" rx="22" fill="#0a1023"/>
+
+  <!-- قبة الطبق (cloche) -->
+  <ellipse cx="50" cy="62" rx="34" ry="6" fill="#1e3a6e" opacity="0.6"/>
+  <path d="M16 62 Q16 30 50 28 Q84 30 84 62 Z" fill="#059669"/>
+  <path d="M18 62 Q18 32 50 30 Q82 32 82 62 Z" fill="#10b981"/>
+
+  <!-- بريق على القبة -->
+  <ellipse cx="38" cy="40" rx="8" ry="4" fill="white" opacity="0.18" transform="rotate(-20 38 40)"/>
+
+  <!-- حافة الطبق -->
+  <rect x="12" y="60" width="76" height="7" rx="3.5" fill="#059669"/>
+  <rect x="14" y="60" width="72" height="5" rx="2.5" fill="#34d399"/>
+
+  <!-- قاعدة -->
+  <rect x="20" y="67" width="60" height="5" rx="2.5" fill="#047857"/>
+
+  <!-- مقبض القبة -->
+  <ellipse cx="50" cy="29" rx="5" ry="4" fill="#34d399"/>
+  <ellipse cx="50" cy="28" rx="3.5" ry="2.5" fill="#6ee7b7"/>
+
+  <!-- علامة + طبية صغيرة -->
+  <rect x="44" y="44" width="12" height="3.5" rx="1.5" fill="white" opacity="0.9"/>
+  <rect x="47.5" y="40.5" width="5" height="10.5" rx="1.5" fill="white" opacity="0.9"/>
+</svg>

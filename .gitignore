@@ -1,0 +1,25 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+.vercel
+
+# env files (only the example is committed)
+.env*
+!.env.example
+
+# local reference material and task files (not part of the app)
+_ref/
+PROMPT.md
+DONE.md
+run-claude.ps1
+
+run-claude-continue.ps1
