@@ -23,3 +23,6 @@ DONE.md
 run-claude.ps1
 
 run-claude-continue.ps1
+
+.vercel
+.env*
