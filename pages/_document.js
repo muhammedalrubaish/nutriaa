@@ -13,9 +13,9 @@ export default function Document() {
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Nutri" />
+        <meta name="apple-mobile-web-app-title" content="خدمات التغذية" />
         <meta name="theme-color" content="#081c44" />
-        <meta name="application-name" content="Nutri" />
+        <meta name="application-name" content="قسم خدمات التغذية" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}

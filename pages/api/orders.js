@@ -2,7 +2,7 @@ import { query } from '@/lib/db'
 import { route } from '@/lib/api'
 import { PERMS } from '@/lib/roles'
 import { isYmd } from '@/lib/time'
-import { deptMap, insertOrder, rowToOrder, validateOrder } from '@/lib/repo'
+import { deptMap, insertOrder, notifyNewOrders, rowToOrder, validateOrder } from '@/lib/repo'
 
 export default route({
   GET: {
@@ -10,16 +10,26 @@ export default route({
     handle: async (req, res) => {
       const where = []
       const params = []
-      const { department, date } = req.query
+      const { department, date, user } = req.query
+      // `date` is a single day; `from`/`to` an inclusive range. Day boundaries in Asia/Riyadh.
+      const from = String(req.query.from || date || '')
+      const to = String(req.query.to || date || '')
       if (department) {
         params.push(String(department))
         where.push(`department = $${params.length}`)
       }
-      if (date) {
-        if (!isYmd(String(date))) return res.status(400).json({ error: 'تاريخ غير صالح' })
-        params.push(String(date))
-        // Day boundaries in Asia/Riyadh.
+      if (user) {
+        params.push(String(user))
+        where.push(`created_by = $${params.length}`)
+      }
+      if (from) {
+        if (!isYmd(from)) return res.status(400).json({ error: 'تاريخ غير صالح' })
+        params.push(from)
         where.push(`created_at >= ($${params.length}::timestamp at time zone 'Asia/Riyadh')`)
+      }
+      if (to) {
+        if (!isYmd(to)) return res.status(400).json({ error: 'تاريخ غير صالح' })
+        params.push(to)
         where.push(`created_at < (($${params.length}::date + 1)::timestamp at time zone 'Asia/Riyadh')`)
       }
       const rows = await query(
@@ -33,9 +43,11 @@ export default route({
   POST: {
     perm: PERMS.CREATE_ORDERS,
     handle: async (req, res, user) => {
-      const { error, value } = validateOrder(req.body || {}, await deptMap())
+      const depts = await deptMap()
+      const { error, value } = validateOrder(req.body || {}, depts)
       if (error) return res.status(400).json({ error })
       const order = await insertOrder(value, user)
+      await notifyNewOrders(user, { order, deptName: depts[order.department]?.name })
       return res.status(201).json({ order })
     },
   },

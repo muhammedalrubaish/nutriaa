@@ -1,6 +1,6 @@
 import { route } from '@/lib/api'
 import { PERMS } from '@/lib/roles'
-import { deptMap, insertOrder, validateOrder } from '@/lib/repo'
+import { deptMap, insertOrder, notifyNewOrders, validateOrder } from '@/lib/repo'
 
 export default route({
   POST: {
@@ -26,6 +26,8 @@ export default route({
           errors.push({ index: i, error: 'تعذّر الحفظ' })
         }
       }
+      // One push for the whole import, not one per row.
+      if (imported) await notifyNewOrders(user, { imported })
       return res.status(200).json({ imported, failed: errors.length, errors })
     },
   },
