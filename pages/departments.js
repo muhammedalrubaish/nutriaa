@@ -1,4 +1,4 @@
-// New page (not in production): supervisor manages departments stored in the DB.
+// New page (not in production): managers manage departments stored in the DB.
 import { useEffect, useState } from 'react'
 import Head from 'next/head'
 import { Building2, Check, ChevronDown, ChevronUp, Pencil, Plus, Trash2 } from 'lucide-react'

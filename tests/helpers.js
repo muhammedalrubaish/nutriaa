@@ -3,6 +3,9 @@ import { COOKIE_NAME, signSession } from '@/lib/session'
 process.env.SESSION_SECRET = 'test-secret-that-is-long-enough'
 
 export const USERS = {
+  u_sys: { id: 'u_sys', username: 'admin', name: 'عبدالله', role: 'sysadmin', created_at: '2026-01-01T00:00:00Z' },
+  u_mgr: { id: 'u_mgr', username: 'admin1', name: 'خليل', role: 'manager', created_at: '2026-01-01T00:00:00Z' },
+  u_mgr2: { id: 'u_mgr2', username: 'mgr2', name: 'مدير آخر', role: 'manager', created_at: '2026-01-01T00:00:00Z' },
   u_sup: { id: 'u_sup', username: 'sup', name: 'مشرف', role: 'supervisor', created_at: '2026-01-01T00:00:00Z' },
   u_dist: { id: 'u_dist', username: 'dist', name: 'موزعة', role: 'distributor', created_at: '2026-01-01T00:00:00Z' },
   u_spec: { id: 'u_spec', username: 'spec', name: 'أخصائية', role: 'specialist', created_at: '2026-01-01T00:00:00Z' },

@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import Head from 'next/head'
-import { ClipboardEdit, Download, Pencil, ShieldCheck, Trash2, User, UserPlus, Users as UsersIcon } from 'lucide-react'
+import { ClipboardEdit, Crown, Download, Lock, Pencil, ShieldCheck, Star, Trash2, User, UserPlus, Users as UsersIcon } from 'lucide-react'
 import Nav from '@/components/Nav'
 import Spinner from '@/components/Spinner'
 import { Alert, Modal, ModalButtons, PageHeader, TextField } from '@/components/forms'
 import { useAuth } from '@/lib/useAuth'
-import { PERMS, ROLE_LIST, roleName } from '@/lib/roles'
+import { PERMS, assignableRoles, canManageUser, rankOf, roleName } from '@/lib/roles'
 
-const ROLE_ICONS = { supervisor: ShieldCheck, distributor: ClipboardEdit, specialist: Download }
+const ROLE_ICONS = { sysadmin: Crown, manager: Star, supervisor: ShieldCheck, distributor: ClipboardEdit, specialist: Download }
 const ROLE_COLORS = {
+  sysadmin: 'bg-rose-500/15 text-rose-400',
+  manager: 'bg-orange-500/15 text-orange-400',
   supervisor: 'bg-amber-500/15 text-amber-500',
   distributor: 'bg-sky-500/15 text-sky-500',
   specialist: 'bg-violet-500/15 text-violet-500',
@@ -90,7 +92,11 @@ export default function Users() {
       </Head>
       <Nav user={user} />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-6">
-        <PageHeader icon={UsersIcon} title="إدارة الموظفين والصلاحيات" subtitle="إضافة حسابات الموظفين وتحديد صلاحياتهم (متاح للمشرف)" />
+        <PageHeader
+          icon={UsersIcon}
+          title="إدارة الموظفين والصلاحيات"
+          subtitle="يمكنك إدارة الحسابات الأقل من صلاحيتك فقط: مدير النظام ← مدير ← مشرف ← أخصائية / موزّعة"
+        />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <form onSubmit={add} className="card rounded-3xl p-6 space-y-4 h-fit">
             <h3 className="font-bold flex items-center gap-2">
@@ -106,7 +112,7 @@ export default function Users() {
               placeholder="٦ أحرف على الأقل"
               autoComplete="new-password"
             />
-            <RolePicker value={form.role} onChange={(v) => set('role', v)} />
+            <RolePicker roles={assignableRoles(user.role)} value={form.role} onChange={(v) => set('role', v)} />
             <Alert>{error}</Alert>
             <Alert kind="success">{success}</Alert>
             <button
@@ -119,8 +125,10 @@ export default function Users() {
           <div className="card rounded-3xl p-6">
             <h3 className="font-bold mb-4">المستخدمون ({users.length})</h3>
             <div className="space-y-2">
-              {users.map((u) => {
+              {[...users].sort((a, b) => rankOf(b.role) - rankOf(a.role)).map((u) => {
                 const Icon = ROLE_ICONS[u.role] || User
+                const self = u.id === user.id
+                const manageable = canManageUser(user, u)
                 return (
                   <div key={u.id} className="flex items-center justify-between p-3 card-2 rounded-xl">
                     <div className="flex items-center gap-3">
@@ -128,26 +136,39 @@ export default function Users() {
                         <Icon size={18} />
                       </div>
                       <div className="leading-tight">
-                        <p className="text-sm font-medium">{u.name}</p>
+                        <p className="text-sm font-medium">
+                          {u.name}
+                          {self && <span className="text-[10px] muted mr-1">(أنت)</span>}
+                        </p>
                         <p className="text-xs muted font-mono">{u.username}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs px-2 py-1 rounded-full ${ROLE_COLORS[u.role] || ''}`}>{roleName(u.role)}</span>
-                      <button
-                        onClick={() => setEditing(u)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-sky-500/15 text-sky-400 transition-colors"
-                        title="تعديل"
-                      >
-                        <Pencil size={15} />
-                      </button>
-                      <button
-                        onClick={() => remove(u)}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-rose-500/15 text-rose-400 transition-colors"
-                        title="حذف"
-                      >
-                        <Trash2 size={15} />
-                      </button>
+                      <span className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${ROLE_COLORS[u.role] || ''}`}>{roleName(u.role)}</span>
+                      {manageable ? (
+                        <button
+                          onClick={() => setEditing(u)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-sky-500/15 text-sky-400 transition-colors"
+                          title="تعديل"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                      ) : (
+                        <span className="w-8 h-8 flex items-center justify-center muted opacity-50" title="صلاحية مساوية أو أعلى منك">
+                          <Lock size={15} />
+                        </span>
+                      )}
+                      {manageable && !self ? (
+                        <button
+                          onClick={() => remove(u)}
+                          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-rose-500/15 text-rose-400 transition-colors"
+                          title="حذف"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      ) : (
+                        <span className="w-8" />
+                      )}
                     </div>
                   </div>
                 )
@@ -158,6 +179,7 @@ export default function Users() {
       </main>
       {editing && (
         <EditUser
+          me={user}
           target={editing}
           onClose={() => setEditing(null)}
           onSaved={() => {
@@ -170,7 +192,7 @@ export default function Users() {
   )
 }
 
-function EditUser({ target, onClose, onSaved }) {
+function EditUser({ me, target, onClose, onSaved }) {
   const [form, setForm] = useState({ name: target.name, role: target.role, password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -209,7 +231,11 @@ function EditUser({ target, onClose, onSaved }) {
           placeholder="اتركه فارغاً للإبقاء على الحالية"
           autoComplete="new-password"
         />
-        <RolePicker value={form.role} onChange={(v) => set('role', v)} />
+        {target.id === me.id ? (
+          <p className="text-xs muted">لا يمكنك تغيير صلاحية حسابك ({roleName(target.role)}).</p>
+        ) : (
+          <RolePicker roles={assignableRoles(me.role)} value={form.role} onChange={(v) => set('role', v)} />
+        )}
         <Alert>{error}</Alert>
         <ModalButtons onCancel={onClose} busy={busy} />
       </form>
@@ -217,12 +243,12 @@ function EditUser({ target, onClose, onSaved }) {
   )
 }
 
-function RolePicker({ value, onChange }) {
+function RolePicker({ roles, value, onChange }) {
   return (
     <div className="space-y-2">
       <label className="text-sm muted">الصلاحية</label>
       <div className="space-y-2">
-        {ROLE_LIST.map((r) => {
+        {roles.map((r) => {
           const Icon = ROLE_ICONS[r.id] || User
           const on = value === r.id
           return (
