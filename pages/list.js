@@ -9,7 +9,7 @@ import { useDepartments } from '@/lib/useDepartments'
 import { can, PERMS } from '@/lib/roles'
 import { DAY_BY_ID, MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
 import { fmtDate, timeAgo } from '@/lib/format'
-import { exportOrdersCsv, printOrderCards } from '@/lib/export'
+import { exportOrdersXlsx, printOrderCards } from '@/lib/export'
 
 export default function List() {
   const { user, loading } = useAuth({ requirePerm: PERMS.VIEW_REPORTS })
@@ -81,7 +81,7 @@ export default function List() {
                 <Printer size={18} /> طباعة بطاقات ({orders.length})
               </button>
               <button
-                onClick={() => exportOrdersCsv(orders, byId)}
+                onClick={() => exportOrdersXlsx(orders, byId)}
                 disabled={orders.length === 0}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
               >
