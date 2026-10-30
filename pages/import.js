@@ -1,59 +1,82 @@
 import { useEffect, useState } from 'react'
 import Head from 'next/head'
-import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, Info, Loader2, Upload } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Download, FileSpreadsheet, FileUp, Info, Loader2, Upload } from 'lucide-react'
 import Nav from '@/components/Nav'
 import Spinner from '@/components/Spinner'
 import { PageHeader } from '@/components/forms'
 import { useAuth } from '@/lib/useAuth'
 import { useDepartments } from '@/lib/useDepartments'
 import { PERMS } from '@/lib/roles'
-import { DAY_BY_ID } from '@/lib/constants'
-import { parseImport } from '@/lib/importParser'
+import { DAY_BY_ID, MEAL_TIMES, PERSON_TYPES, WEEK_DAYS } from '@/lib/constants'
+import { parseImport, parseRows } from '@/lib/importParser'
+import { downloadXlsx, readXlsxRows } from '@/lib/xlsx'
 
 const TEMPLATE_HEADER = [
-  'اسم المريض/المرافق', 'القسم', 'رقم الغرفة', 'رقم السرير', 'نوع الشخص (مريض/مرافق)', 'اليوم',
-  'وقت الوجبة (فطور/غداء/عشاء)', 'الوجبة الأساسية', 'الإضافة الاختيارية', 'ملاحظات',
-]
-const TEMPLATE_ROWS = [
-  ['نورة عبدالله السالم', 'قسم الولادة ١', '128', '1', 'مريض', 'الأحد', 'غداء', 'وجبة عادية', 'عصير طازج', ''],
-  ['فاطمة علي الزهراني', 'قسم الولادة ٢', '150', '2', 'مريض', 'الاثنين', 'فطور', 'وجبة دايت', 'فاكهة', 'بدون ملح'],
-  ['هند سعد القحطاني', 'قسم الأرحام', '330', '1', 'مرافق', 'الثلاثاء', 'عشاء', 'وجبة مرضى السكري', '', ''],
+  'اسم المريض/المرافق', 'القسم', 'رقم الغرفة', 'رقم السرير', 'نوع الشخص', 'اليوم', 'وقت الوجبة',
+  'الوجبة الأساسية', 'الإضافة الاختيارية', 'ملاحظات',
 ]
 
-function downloadTemplate() {
-  const blob = new Blob(
-    ['﻿' + [TEMPLATE_HEADER, ...TEMPLATE_ROWS].map((r) => r.map((c) => `"${c}"`).join(',')).join('\r\n')],
-    { type: 'text/csv;charset=utf-8' },
-  )
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = 'نموذج_استيراد_الوجبات.csv'
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+// No sample rows: a forgotten example would be imported as a real meal. Dropdowns guide the input instead.
+function downloadTemplate(departments) {
+  return downloadXlsx({
+    fileName: 'نموذج_استيراد_الوجبات',
+    sheetName: 'الطلبات',
+    header: TEMPLATE_HEADER,
+    rows: [],
+    blankRows: 500,
+    widths: [26, 20, 12, 12, 12, 12, 13, 30, 22, 26],
+    lists: [
+      { col: 2, values: departments.map((d) => d.name) },
+      { col: 4, values: [1, 2, 3, 4] },
+      { col: 5, values: PERSON_TYPES.map((p) => p.name) },
+      { col: 6, values: WEEK_DAYS.map((d) => d.name) },
+      { col: 7, values: MEAL_TIMES.map((m) => m.name) },
+    ],
+  })
 }
 
 export default function Import() {
   const { user, loading } = useAuth({ requirePerm: PERMS.MANAGE_USERS })
   const { departments, byId } = useDepartments({ enabled: !!user })
   const [text, setText] = useState('')
+  const [file, setFile] = useState(null) // { name, rows } of an uploaded workbook
+  const [reading, setReading] = useState(false)
   const [rows, setRows] = useState([])
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
 
-  // Re-validate pasted rows once the department list has loaded.
+  // Re-validate pasted or uploaded rows once the department list has loaded.
   useEffect(() => {
-    if (text) setRows(parseImport(text, departments))
+    if (file) setRows(parseRows(file.rows, departments))
+    else if (text) setRows(parseImport(text, departments))
   }, [departments])
 
   if (loading || !user) return <Spinner />
 
   const onPaste = (v) => {
     setText(v)
+    setFile(null)
     setRows(parseImport(v, departments))
     setResult(null)
+  }
+  const onFile = async (e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    if (!f) return
+    setResult(null)
+    setReading(true)
+    try {
+      const cells = await readXlsxRows(f)
+      setFile({ name: f.name, rows: cells })
+      setText('')
+      setRows(parseRows(cells, departments))
+    } catch {
+      setFile(null)
+      setRows([])
+      setResult({ error: 'تعذّر قراءة الملف. تأكد أنه ملف Excel بصيغة ‎.xlsx' })
+    } finally {
+      setReading(false)
+    }
   }
   const valid = rows.filter((r) => r.valid)
   const invalidCount = rows.length - valid.length
@@ -72,6 +95,7 @@ export default function Import() {
       setResult(d)
       if (r.ok && d.failed === 0) {
         setText('')
+        setFile(null)
         setRows([])
       }
     } catch {
@@ -91,7 +115,7 @@ export default function Import() {
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-6">
         <PageHeader icon={FileSpreadsheet} title="استيراد بيانات من Excel" subtitle="أنشئ طلبات وجبات دفعة واحدة من ملف Excel مُعبَّأ مسبقاً">
           <button
-            onClick={downloadTemplate}
+            onClick={() => downloadTemplate(departments)}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 transition-colors text-sm"
           >
             <Download size={17} />
@@ -104,19 +128,30 @@ export default function Import() {
           <div className="text-sm space-y-1">
             <p className="font-bold mb-2">طريقة الاستخدام:</p>
             <ol className="list-decimal list-inside space-y-1 muted">
-              <li>حمّل نموذج Excel بالضغط على الزر أعلاه ثم افتحه بـ Excel</li>
-              <li>أدخل بيانات الوجبات في الأسطر بعد السطر الأول (السطر الأول عناوين لا تحذفه)</li>
-              <li>
-                اختر كل الخلايا <span className="font-mono bg-white/10 px-1 rounded">Ctrl+A</span> ثم انسخ{' '}
-                <span className="font-mono bg-white/10 px-1 rounded">Ctrl+C</span>
-              </li>
-              <li>الصق البيانات في الحقل أدناه وراجع المعاينة</li>
-              <li>اضغط &quot;استيراد&quot; لإنشاء الطلبات في النظام</li>
+              <li>حمّل النموذج (ملف ‎.xlsx) بالزر أعلاه وافتحه بـ Excel</li>
+              <li>املأ الأسطر تحت العناوين؛ القسم والسرير والنوع واليوم ووقت الوجبة تُختار من قائمة منسدلة</li>
+              <li>احفظ الملف ثم ارفعه بزر &quot;رفع ملف Excel&quot; أدناه (أو انسخ الخلايا والصقها)</li>
+              <li>راجع المعاينة ثم اضغط &quot;استيراد&quot;</li>
             </ol>
           </div>
         </div>
 
         <div className="card rounded-2xl p-5 space-y-3">
+          <label
+            className={`flex items-center justify-center gap-2 w-full py-6 rounded-xl border-2 border-dashed border-emerald-500/40 text-emerald-400 font-bold cursor-pointer hover:bg-emerald-500/5 transition-colors ${
+              reading ? 'opacity-60 pointer-events-none' : ''
+            }`}
+          >
+            {reading ? <Loader2 size={20} className="animate-spin" /> : <FileUp size={20} />}
+            {reading ? 'جارٍ قراءة الملف...' : file ? `تم رفع: ${file.name} — اضغط لاختيار ملف آخر` : 'رفع ملف Excel (‎.xlsx)'}
+            <input
+              type="file"
+              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              onChange={onFile}
+              className="hidden"
+            />
+          </label>
+          <p className="text-center text-xs muted">أو</p>
           <label className="font-bold text-sm block">الصق بيانات Excel هنا:</label>
           <textarea
             value={text}

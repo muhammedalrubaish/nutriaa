@@ -6,7 +6,7 @@ const { query } = await import('@/lib/db')
 const departments = (await import('@/pages/api/departments')).default
 const { validateOrder } = await import('@/lib/repo')
 const { roomsOf, parseRoomList, validateDept, findOverlaps } = await import('@/lib/departments')
-const { parseImport } = await import('@/lib/importParser')
+const { parseImport, parseRows } = await import('@/lib/importParser')
 const { riyadhDate } = await import('@/lib/time')
 
 const row = (id, name, color, from, to, sort, active = true, extra = []) => ({
@@ -158,6 +158,23 @@ describe('department helpers and order validation', () => {
     const rows = parseImport(text, list)
     expect(rows[0]).toMatchObject({ valid: true, department: 'ob2', day: 'fri' })
     expect(rows[1]).toMatchObject({ valid: true, department: 'gine', day: 'sat', personType: 'companion' })
+    expect(rows[2].valid).toBe(false)
+  })
+  it('parses uploaded workbook rows, with beds as 1-4 or A-D', () => {
+    const list = Object.values(depts).filter((d) => d.active)
+    const rows = parseRows(
+      [
+        ['header'],
+        ['نورة', 'قسم الولادة ١', '128', 'B', 'مريض', 'الأحد', 'غداء', 'وجبة عادية', 'عصير', 'بدون ملح'],
+        ['هند', 'قسم الأرحام', '330', '4', 'مرافق', 'الثلاثاء', 'عشاء', 'وجبة', '', ''],
+        ['', '', '', '', '', '', '', '', '', ''],
+        ['خطأ', 'قسم الأرحام', '330', 'E', 'مريض', 'الأحد', 'غداء', 'وجبة', '', ''],
+      ],
+      list,
+    )
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toMatchObject({ valid: true, department: 'ob1', bed: 2, options: ['عصير'], notes: 'بدون ملح' })
+    expect(rows[1]).toMatchObject({ valid: true, department: 'gine', bed: 4, personType: 'companion' })
     expect(rows[2].valid).toBe(false)
   })
   it('computes "today" in Asia/Riyadh', () => {

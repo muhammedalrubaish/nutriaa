@@ -13,7 +13,7 @@ import { can, PERMS } from '@/lib/roles'
 import { MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
 import { colorClasses } from '@/lib/departments'
 import { fmtDate, timeAgo } from '@/lib/format'
-import { exportOrdersCsv } from '@/lib/export'
+import { exportOrdersXlsx } from '@/lib/export'
 import { monthStart, riyadhDate, weekStart } from '@/lib/time'
 
 const PERIODS = [
@@ -100,7 +100,7 @@ export default function Dashboard() {
     const r = await fetch('/api/orders?' + qs)
     const d = await r.json()
     const name = range.from === range.to ? `تقرير-${range.from}` : `تقرير-${range.from}_${range.to}`
-    exportOrdersCsv(d.orders || [], deptById, userFilter ? `${name}-${userFilter}` : name)
+    exportOrdersXlsx(d.orders || [], deptById, userFilter ? `${name}-${userFilter}` : name)
   }
 
   return (
