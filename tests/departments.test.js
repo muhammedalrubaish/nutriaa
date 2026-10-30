@@ -46,7 +46,7 @@ describe('GET /api/departments', () => {
 })
 
 describe('POST /api/departments', () => {
-  it('is supervisor-only', async () => {
+  it('is manager-only', async () => {
     query.mockImplementation(sqlRouter(() => []))
     const res = mockRes()
     await departments(mockReq({ method: 'POST', user: 'u_spec', body: { name: 'x', roomFrom: 1, roomTo: 2 } }), res)
@@ -56,7 +56,7 @@ describe('POST /api/departments', () => {
   it('validates the room range', async () => {
     query.mockImplementation(sqlRouter(() => []))
     const res = mockRes()
-    await departments(mockReq({ method: 'POST', user: 'u_sup', body: { name: 'قسم جديد', roomFrom: 20, roomTo: 10 } }), res)
+    await departments(mockReq({ method: 'POST', user: 'u_mgr', body: { name: 'قسم جديد', roomFrom: 20, roomTo: 10 } }), res)
     expect(res.statusCode).toBe(400)
   })
   it('creates a department and warns about overlapping rooms', async () => {
@@ -69,7 +69,7 @@ describe('POST /api/departments', () => {
     )
     const res = mockRes()
     await departments(
-      mockReq({ method: 'POST', user: 'u_sup', body: { name: 'قسم الطوارئ', color: 'teal', roomFrom: 120, roomTo: 130, extraRooms: '200, 210-211' } }),
+      mockReq({ method: 'POST', user: 'u_mgr', body: { name: 'قسم الطوارئ', color: 'teal', roomFrom: 120, roomTo: 130, extraRooms: '200, 210-211' } }),
       res,
     )
     expect(res.statusCode).toBe(201)
@@ -81,7 +81,7 @@ describe('POST /api/departments', () => {
   it('rejects a duplicate name', async () => {
     query.mockImplementation(sqlRouter((sql) => (/lower\(name\)/.test(sql) ? [{ id: 'ob1' }] : [])))
     const res = mockRes()
-    await departments(mockReq({ method: 'POST', user: 'u_sup', body: { name: 'قسم الولادة ١', roomFrom: 1, roomTo: 2 } }), res)
+    await departments(mockReq({ method: 'POST', user: 'u_mgr', body: { name: 'قسم الولادة ١', roomFrom: 1, roomTo: 2 } }), res)
     expect(res.statusCode).toBe(409)
   })
 })
@@ -90,7 +90,7 @@ describe('PUT /api/departments', () => {
   it('reorders by id list', async () => {
     query.mockImplementation(sqlRouter((sql) => (/from departments/.test(sql) ? SEED : [])))
     const res = mockRes()
-    await departments(mockReq({ method: 'PUT', user: 'u_sup', body: { order: ['gine', 'ob1', 'ob2', 'ob3', 'old'] } }), res)
+    await departments(mockReq({ method: 'PUT', user: 'u_mgr', body: { order: ['gine', 'ob1', 'ob2', 'ob3', 'old'] } }), res)
     expect(res.statusCode).toBe(200)
     const call = query.mock.calls.find(([sql]) => /unnest/.test(sql))
     expect(call[1][0]).toEqual(['gine', 'ob1', 'ob2', 'ob3', 'old'])
@@ -104,7 +104,7 @@ describe('PUT /api/departments', () => {
       }),
     )
     const res = mockRes()
-    await departments(mockReq({ method: 'PUT', user: 'u_sup', body: { id: 'ob2', roomTo: 156, active: false } }), res)
+    await departments(mockReq({ method: 'PUT', user: 'u_mgr', body: { id: 'ob2', roomTo: 156, active: false } }), res)
     expect(res.statusCode).toBe(200)
     expect(res.body.department).toMatchObject({ id: 'ob2', name: 'قسم الولادة ٢', roomTo: 156, active: false })
   })
@@ -119,7 +119,7 @@ describe('DELETE /api/departments', () => {
       }),
     )
     const res = mockRes()
-    await departments(mockReq({ method: 'DELETE', user: 'u_sup', query: { id: 'ob1' } }), res)
+    await departments(mockReq({ method: 'DELETE', user: 'u_mgr', query: { id: 'ob1' } }), res)
     return res
   }
   it('deactivates instead of deleting when orders reference it', async () => {

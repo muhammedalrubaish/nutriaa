@@ -1,14 +1,17 @@
 import bcrypt from 'bcryptjs'
 import { query } from '@/lib/db'
 import { route, newId, str } from '@/lib/api'
-import { PERMS, ROLES } from '@/lib/roles'
+import { PERMS, ROLES, assignableRoles, canManageUser } from '@/lib/roles'
 
 const PW_ERROR = 'كلمة المرور يجب أن تكون ٦ أحرف على الأقل'
+const RANK_ERROR = 'لا يمكنك تعديل حساب بنفس صلاحيتك أو أعلى منها'
+const ROLE_ERROR = 'لا يمكنك منح هذه الصلاحية'
 
-async function supervisorCount() {
-  const rows = await query(`select count(*)::int as n from users where role = 'supervisor'`)
-  return rows[0]?.n || 0
-}
+// Rules (enforced here, not only in the UI): you may create, edit or delete only accounts ranked
+// strictly below yours and give only roles below yours. On your own account you may change your
+// name and password but not your role. So the single system admin can't be created, demoted or
+// deleted from the app, and managers can't touch each other.
+const mayAssign = (me, role) => assignableRoles(me.role).some((r) => r.id === role)
 
 export default route({
   GET: {
@@ -20,7 +23,7 @@ export default route({
   },
   POST: {
     perm: PERMS.MANAGE_USERS,
-    handle: async (req, res) => {
+    handle: async (req, res, me) => {
       const name = str(req.body?.name, 100)
       const username = str(req.body?.username, 50)
       const password = typeof req.body?.password === 'string' ? req.body.password : ''
@@ -30,6 +33,7 @@ export default route({
         return res.status(400).json({ error: 'اسم المستخدم يجب ألا يحتوي على مسافات' })
       if (password.length < 6) return res.status(400).json({ error: PW_ERROR })
       if (!ROLES[role]) return res.status(400).json({ error: 'صلاحية غير صالحة' })
+      if (!mayAssign(me, role)) return res.status(403).json({ error: ROLE_ERROR })
       const exists = await query('select 1 from users where username = $1', [username])
       if (exists.length) return res.status(409).json({ error: 'اسم المستخدم مستخدم مسبقاً' })
       const hash = await bcrypt.hash(password, 10)
@@ -54,10 +58,10 @@ export default route({
       if (!ROLES[role]) return res.status(400).json({ error: 'صلاحية غير صالحة' })
       if (password !== undefined && password !== '' && (typeof password !== 'string' || password.length < 6))
         return res.status(400).json({ error: PW_ERROR })
-      if (target.role === 'supervisor' && role !== 'supervisor') {
-        if (target.id === me.id) return res.status(400).json({ error: 'لا يمكنك إزالة صلاحية المشرف عن حسابك' })
-        if ((await supervisorCount()) <= 1) return res.status(400).json({ error: 'يجب أن يبقى مشرف واحد على الأقل' })
-      }
+      if (!canManageUser(me, target)) return res.status(403).json({ error: RANK_ERROR })
+      if (target.id === me.id) {
+        if (role !== target.role) return res.status(400).json({ error: 'لا يمكنك تغيير صلاحية حسابك' })
+      } else if (!mayAssign(me, role)) return res.status(403).json({ error: ROLE_ERROR })
       if (password) {
         const hash = await bcrypt.hash(password, 10)
         await query('update users set name = $2, role = $3, password_hash = $4 where id = $1', [id, name, role, hash])
@@ -74,8 +78,7 @@ export default route({
       const target = (await query('select id, role from users where id = $1', [id]))[0]
       if (!target) return res.status(404).json({ error: 'المستخدم غير موجود' })
       if (target.id === me.id) return res.status(400).json({ error: 'لا يمكنك حذف حسابك' })
-      if (target.role === 'supervisor' && (await supervisorCount()) <= 1)
-        return res.status(400).json({ error: 'يجب أن يبقى مشرف واحد على الأقل' })
+      if (!canManageUser(me, target)) return res.status(403).json({ error: RANK_ERROR })
       await query('delete from users where id = $1', [id])
       return res.status(200).json({ ok: true })
     },

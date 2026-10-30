@@ -40,7 +40,7 @@ describe('order push notifications', () => {
     expect(payload.body).toContain('غرفة 144 · سرير A · مرافق · غداء')
     expect(payload.body).toContain('طلبات اليوم: 23')
     expect(payload.body).not.toContain('رايد')
-    expect(opts).toEqual({ roles: ['supervisor', 'specialist'], excludeUserId: 'u_dist' })
+    expect(opts).toEqual({ roles: ['sysadmin', 'manager', 'supervisor', 'specialist'], excludeUserId: 'u_dist' })
   })
 
   it('still saves the order when the push fails', async () => {
@@ -59,7 +59,7 @@ describe('order push notifications', () => {
 
   it('sends a single push for a bulk import', async () => {
     const res = mockRes()
-    await bulk(mockReq({ method: 'POST', user: 'u_sup', body: { orders: [BODY, BODY, BODY] } }), res)
+    await bulk(mockReq({ method: 'POST', user: 'u_mgr', body: { orders: [BODY, BODY, BODY] } }), res)
     expect(res.body.imported).toBe(3)
     expect(sendToAll).toHaveBeenCalledTimes(1)
     expect(sendToAll.mock.calls[0][0].title).toBe('تم استيراد 3 طلب')
