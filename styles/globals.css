@@ -3,6 +3,7 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
   --bg: 241 245 249;
   --surface: 255 255 255;
   --surface-2: 248 250 252;
@@ -12,6 +13,8 @@
   --input: 255 255 255;
 }
 .dark {
+  /* Native controls (select lists, date pickers, scrollbars) follow the dark theme. */
+  color-scheme: dark;
   --bg: 8 28 68;
   --surface: 11 38 85;
   --surface-2: 6 22 55;
@@ -61,6 +64,26 @@
   .pb-nav {
     padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
   }
+}
+
+/* Thin scrollbars in the theme colours, for the page and for scrollable panels. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--muted) / 0.45) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--muted) / 0.45);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(var(--muted) / 0.7);
 }
 
 html,
