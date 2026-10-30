@@ -2,7 +2,7 @@
 
 <div dir="rtl">
 
-نظام طلبات وجبات المرضى والمرافقين لقسم التغذية (تجمع القصيم الصحي). مبني على Next.js 14 (Pages Router) و React 18 و Tailwind، وقاعدة البيانات **Supabase Postgres**.
+نظام طلبات وجبات المرضى والمرافقين لقسم التغذية (تجمع القصيم الصحي). مبني على Next.js 15 (Pages Router) و React 18 و Tailwind، وقاعدة البيانات **Supabase Postgres**.
 
 ## ⚙️ الإعداد المحلي
 
@@ -47,7 +47,7 @@
 
 ## English
 
-Hospital meal-ordering app (Arabic, RTL) rebuilt from the production site. Stack: Next.js 14 Pages Router, React 18, Tailwind 3, framer-motion, lucide-react, Cairo font, Supabase Postgres via `pg`.
+Hospital meal-ordering app (Arabic, RTL) rebuilt from the production site. Stack: Next.js 15 Pages Router, React 18, Tailwind 3, framer-motion, lucide-react, Cairo font, Supabase Postgres via `pg`.
 
 ### Setup
 1. `npm install`, copy `.env.example` → `.env.local` and fill it in.
