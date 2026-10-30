@@ -85,11 +85,11 @@ export default function Users() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>إدارة الموظفين | قسم التغذية</title>
+        <title>إدارة الموظفين | قسم خدمات التغذية</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-6">
         <PageHeader icon={UsersIcon} title="إدارة الموظفين والصلاحيات" subtitle="إضافة حسابات الموظفين وتحديد صلاحياتهم (متاح للمشرف)" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <form onSubmit={add} className="card rounded-3xl p-6 space-y-4 h-fit">

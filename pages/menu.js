@@ -42,11 +42,11 @@ export default function Menu() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>القائمة الأسبوعية | قسم التغذية</title>
+        <title>القائمة الأسبوعية | قسم خدمات التغذية</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-6">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-emerald-600/15 text-emerald-500 rounded-xl flex items-center justify-center">

@@ -20,23 +20,33 @@ const ITEMS = [
   { href: '/departments', label: 'الأقسام', icon: Building2, perm: PERMS.MANAGE_USERS },
 ]
 
+// Kept across client-side navigations so the bell doesn't flash empty on every page.
+let cachedNotifs = null
+
 export default function Nav({ user }) {
   const router = useRouter()
-  const [data, setData] = useState({ alerts: [], notes: [] })
+  const [data, setData] = useState(cachedNotifs)
 
   useEffect(() => {
     const load = () =>
       fetch('/api/notifications')
-        .then((r) => (r.ok ? r.json() : { alerts: [], notes: [] }))
-        .then(setData)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d) return
+          cachedNotifs = d
+          setData(d)
+        })
         .catch(() => {})
     load()
     const t = setInterval(load, 30000)
     return () => clearInterval(t)
   }, [])
 
+  const updateData = (fn) => setData((d) => (cachedNotifs = fn(d)))
+
   const logout = async () => {
     await fetch('/api/logout', { method: 'POST' }).catch(() => {})
+    cachedNotifs = null
     clearAuthCache()
     invalidateDepartments()
     router.replace('/login')
@@ -49,19 +59,20 @@ export default function Nav({ user }) {
       <DynamicIsland data={data} />
       <header className="sticky top-0 z-30 card border-x-0 border-t-0 backdrop-blur-xl" dir="rtl">
         <div className="max-w-6xl mx-auto px-4 py-2.5 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img src="/qhc-logo.jpeg" alt="تجمع القصيم الصحي" className="h-9 w-9 rounded-lg object-cover" />
-            <div className="leading-tight">
-              <p className="text-sm font-extrabold tracking-wide text-emerald-400">Nutri</p>
-              <p className="text-[10px] muted">تجمع القصيم الصحي</p>
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img src="/qhc-logo.jpeg" alt="تجمع القصيم الصحي" className="h-9 w-9 rounded-lg object-cover shrink-0" />
+            <div className="leading-tight min-w-0">
+              <p className="text-sm font-extrabold text-emerald-400 truncate">قسم خدمات التغذية</p>
+              <p className="text-[10px] muted truncate">مستشفى الولادة والأطفال ببريدة</p>
             </div>
           </div>
-          <p className="absolute left-1/2 -translate-x-1/2 text-sm font-bold">
+          {/* The bottom nav already marks the current page; on phones the centred title collided with the brand. */}
+          <p className="hidden md:block absolute left-1/2 -translate-x-1/2 text-sm font-bold">
             {items.find((i) => i.href === router.pathname)?.label || ''}
           </p>
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-0.5 shrink-0">
             <PushToggle />
-            <NotificationsBell user={user} data={data} setData={setData} />
+            <NotificationsBell user={user} data={data} setData={updateData} />
             <ThemeToggle />
             <button
               onClick={logout}
@@ -95,7 +106,6 @@ export default function Nav({ user }) {
           })}
         </div>
       </nav>
-      <div className="h-20" />
     </>
   )
 }

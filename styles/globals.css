@@ -57,6 +57,10 @@
   .pb-safe {
     padding-bottom: env(safe-area-inset-bottom, 8px);
   }
+  /* Keeps the end of the page clear of the fixed bottom nav. */
+  .pb-nav {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 html,

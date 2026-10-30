@@ -23,7 +23,7 @@ export default route({
         [newId('n_'), message, department, user.username, user.name],
       )
       try {
-        await sendToAll({ title: deptName ? `Nutri · ${deptName}` : 'Nutri', body: message, url: '/', tag: 'nutri-note' })
+        await sendToAll({ title: deptName ? `قسم خدمات التغذية · ${deptName}` : 'قسم خدمات التغذية', body: message, url: '/', tag: 'nutri-note' })
       } catch (e) {
         console.error('[notes] push failed', e.message)
       }

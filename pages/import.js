@@ -84,11 +84,11 @@ export default function Import() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>استيراد بيانات Excel | قسم التغذية</title>
+        <title>استيراد بيانات Excel | قسم خدمات التغذية</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-6">
         <PageHeader icon={FileSpreadsheet} title="استيراد بيانات من Excel" subtitle="أنشئ طلبات وجبات دفعة واحدة من ملف Excel مُعبَّأ مسبقاً">
           <button
             onClick={downloadTemplate}
