@@ -176,7 +176,7 @@ export default function Orders() {
                   value={form.room}
                   onChange={(e) => set('room', e.target.value)}
                   disabled={!dept}
-                  className="w-full field rounded-xl p-3 disabled:opacity-50"
+                  className="w-full h-12 field rounded-xl px-3 disabled:opacity-50"
                 >
                   <option value="">{dept ? 'اختر الغرفة' : 'اختر القسم أولاً'}</option>
                   {dept?.rooms.map((n) => (
@@ -187,9 +187,10 @@ export default function Orders() {
                 </select>
               </Field>
               <Field label="وقت الوجبة">
-                <div className="grid grid-cols-3 gap-1">
+                {/* Same height as the room select next to it. */}
+                <div className="grid grid-cols-3 gap-1.5">
                   {MEAL_TIMES.map((m) => (
-                    <Toggle key={m.id} compact active={form.mealTime === m.id} onClick={() => set('mealTime', m.id)}>
+                    <Toggle key={m.id} className="h-12 px-1 text-sm" active={form.mealTime === m.id} onClick={() => set('mealTime', m.id)}>
                       {m.name}
                     </Toggle>
                   ))}
@@ -310,12 +311,14 @@ function Field({ label, children }) {
   )
 }
 
-function Toggle({ active, onClick, children, compact }) {
+function Toggle({ active, onClick, children, compact, className }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-xl border transition-colors text-center ${compact ? 'py-2 px-1 text-xs leading-tight' : 'py-3 px-4 text-sm'} ${
+      className={`rounded-xl border transition-colors text-center ${
+        className || (compact ? 'py-2 px-1 text-xs leading-tight' : 'py-3 px-4 text-sm')
+      } ${
         active ? 'bg-emerald-600 border-emerald-500 text-white font-bold' : 'card-2 hover:border-emerald-500/40'
       }`}
     >
