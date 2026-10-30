@@ -8,6 +8,8 @@ self.addEventListener('push', (event) => {
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       tag: data.tag || 'nutri-note',
+      // Same tag + no renotify: the existing notification is updated silently instead of buzzing again.
+      renotify: !!data.renotify,
       data: { url: data.url || '/' },
       dir: 'rtl',
       lang: 'ar',

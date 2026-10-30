@@ -2,7 +2,7 @@ import { query } from '@/lib/db'
 import { route } from '@/lib/api'
 import { PERMS } from '@/lib/roles'
 import { isYmd } from '@/lib/time'
-import { deptMap, insertOrder, rowToOrder, validateOrder } from '@/lib/repo'
+import { deptMap, insertOrder, notifyNewOrders, rowToOrder, validateOrder } from '@/lib/repo'
 
 export default route({
   GET: {
@@ -43,9 +43,11 @@ export default route({
   POST: {
     perm: PERMS.CREATE_ORDERS,
     handle: async (req, res, user) => {
-      const { error, value } = validateOrder(req.body || {}, await deptMap())
+      const depts = await deptMap()
+      const { error, value } = validateOrder(req.body || {}, depts)
       if (error) return res.status(400).json({ error })
       const order = await insertOrder(value, user)
+      await notifyNewOrders(user, { order, deptName: depts[order.department]?.name })
       return res.status(201).json({ order })
     },
   },
