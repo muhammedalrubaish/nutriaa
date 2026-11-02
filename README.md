@@ -43,7 +43,9 @@
 
 ## 👥 الصلاحيات
 
-مدير النظام (حساب واحد) ← مدير ← مشرف ← أخصائية / موظفة موزّعة. كل مستخدم يدير فقط الحسابات الأقل منه، ويغيّر اسمه وكلمة مروره دون صلاحيته. المشرف: الطلبات والتقارير والتصدير وحذف الطلبات والقائمة والملاحظات، بدون الموظفين والأقسام والاستيراد.
+مدير النظام (حساب واحد) ← مدير ← مشرف ← أخصائية / موظفة موزّعة. كل مستخدم يدير فقط الحسابات الأقل منه، ويغيّر اسمه وكلمة مروره دون صلاحيته. المشرف: الطلبات والتقارير والتصدير وحذف الطلبات والقائمة والملاحظات، بدون الموظفين والأقسام والاستيراد. الأخصائية: إدخال الطلبات وسجل الطلبات وتصديره وطباعة البطاقات، بدون لوحة المؤشرات.
+
+عند تعديل القائمة الأسبوعية يصل تنبيه في الجرس (لمدة أسبوع) وإشعار جوال لكل من يُدخل الطلبات، عدا من عدّلها. يُحفظ آخر 20 تعديلاً في جدول `settings` (المفتاح `menu_changes`) فلا يحتاج ترحيل قاعدة بيانات.
 
 </div>
 
@@ -58,7 +60,7 @@ Hospital meal-ordering app (Arabic, RTL) rebuilt from the production site. Stack
 2. Apply `db/migrations/*.sql` in order — paste each into **Supabase → SQL Editor**, or run `npm run db:migrate`.
 3. Create the system admin: set `ADMIN_USERNAME` / `ADMIN_PASSWORD` and run `npm run db:create-admin` (also resets that password). No credentials are stored in the repo.
 
-Roles, highest first: sysadmin (exactly one) → manager → supervisor (operations only) → specialist / distributor. Each user manages only accounts ranked below them; enforced in `/api/users` and, for the single sysadmin, by a unique index.
+Roles, highest first: sysadmin (exactly one) → manager → supervisor (operations only) → specialist / distributor. Specialists enter orders and use the order log (export, print cards) but have no dashboard (`view_dashboard`). Menu edits raise a bell alert (kept a week) and a push to order-entry staff; the last 20 live in `settings.menu_changes`, so no migration is needed. Each user manages only accounts ranked below them; enforced in `/api/users` and, for the single sysadmin, by a unique index.
 4. `npm run dev`.
 
 ### Supabase

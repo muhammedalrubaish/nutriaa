@@ -1,7 +1,7 @@
 import { query } from '@/lib/db'
 import { route } from '@/lib/api'
 import { PERMS } from '@/lib/roles'
-import { listDepartments, getMinDaily, todayCountsByDepartment } from '@/lib/repo'
+import { listDepartments, listOrderUsers, getMinDaily, todayCountsByDepartment } from '@/lib/repo'
 import { riyadhDate, addDays, isYmd, daysBetween, weekStart } from '@/lib/time'
 
 const MAX_RANGE_DAYS = 732
@@ -23,7 +23,7 @@ function trendKeys(unit, from, to) {
 
 export default route({
   GET: {
-    perm: PERMS.VIEW_REPORTS,
+    perm: PERMS.VIEW_DASHBOARD,
     handle: async (req, res) => {
       const today = riyadhDate()
       const from = req.query.from ? String(req.query.from) : today
@@ -55,7 +55,7 @@ export default route({
         getMinDaily(),
         // Shortfall alerts are always about today and all staff, whatever the filter.
         todayCountsByDepartment(today),
-        query('select username, name from users order by name, username'),
+        listOrderUsers(),
       ])
 
       const summary = { total: 0, patient: 0, companion: 0 }

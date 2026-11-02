@@ -12,7 +12,7 @@ import { useDepartments } from '@/lib/useDepartments'
 import { can, PERMS } from '@/lib/roles'
 import { MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
 import { colorClasses } from '@/lib/departments'
-import { fmtDate, timeAgo } from '@/lib/format'
+import { fmtDate, nameLabels, timeAgo } from '@/lib/format'
 import { exportOrdersXlsx } from '@/lib/export'
 import { monthStart, riyadhDate, weekStart } from '@/lib/time'
 
@@ -45,7 +45,7 @@ const TREND_TITLE = { hour: 'حسب الساعة', day: 'حسب اليوم', wee
 const trendLabel = (unit, key) => (unit === 'hour' ? key.padStart(2, '0') : unit === 'month' ? key : key.slice(5))
 
 export default function Dashboard() {
-  const { user, loading } = useAuth({ requirePerm: PERMS.VIEW_REPORTS })
+  const { user, loading } = useAuth({ requirePerm: PERMS.VIEW_DASHBOARD })
   const [stats, setStats] = useState(null)
   const [error, setError] = useState('')
   const [openDept, setOpenDept] = useState(null)
@@ -91,7 +91,8 @@ export default function Dashboard() {
   const maxUser = Math.max(1, ...byUser.map((u) => u.total))
   const canExport = can(user.role, PERMS.EXPORT_REPORTS)
   const canNotes = can(user.role, PERMS.SEND_NOTES)
-  const userName = (stats?.users || []).find((u) => u.username === userFilter)?.name || userFilter
+  const userOptions = nameLabels(stats?.users)
+  const userName = userOptions.find((u) => u.username === userFilter)?.label || ''
   const scope = `${range.label}${userFilter ? ` · ${userName}` : ''}`
   // Expected volume for the period, so the department bars stay comparable across periods.
   const deptTarget = (stats?.minDaily || 5) * (stats?.days || 1)
@@ -100,7 +101,7 @@ export default function Dashboard() {
     const r = await fetch('/api/orders?' + qs)
     const d = await r.json()
     const name = range.from === range.to ? `تقرير-${range.from}` : `تقرير-${range.from}_${range.to}`
-    exportOrdersXlsx(d.orders || [], deptById, userFilter ? `${name}-${userFilter}` : name)
+    exportOrdersXlsx(d.orders || [], deptById, userName ? `${name}-${userName}` : name)
   }
 
   return (
@@ -178,9 +179,9 @@ export default function Dashboard() {
             <Users size={16} className="muted shrink-0" />
             <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="field rounded-lg p-2 text-sm flex-1">
               <option value="">كل المستخدمين</option>
-              {(stats?.users || []).map((u) => (
+              {userOptions.map((u) => (
                 <option key={u.username} value={u.username}>
-                  {u.name} ({u.username})
+                  {u.label}
                 </option>
               ))}
             </select>
@@ -307,7 +308,7 @@ export default function Dashboard() {
             <div className="space-y-3">
               {byUser.map((u) => (
                 <button key={u.username} onClick={() => setUserFilter(u.username)} className="block w-full text-right">
-                  <Bar label={`${u.name} (${u.username})`} value={u.total} max={maxUser} />
+                  <Bar label={u.name} value={u.total} max={maxUser} />
                 </button>
               ))}
               {byUser.length === 0 && <p className="text-sm muted text-center py-6">لا توجد طلبات في هذه الفترة.</p>}
@@ -519,10 +520,10 @@ function DeptModal({ dept, range, user, scope, onClose }) {
           {orders && orders.length === 0 && <div className="text-center py-12 muted">لا توجد طلبات لهذا القسم في هذه الفترة.</div>}
         </div>
         {/* The full log filters by a single day only. */}
-        {range.from === range.to && !user && (
+        {range.from === range.to && (
           <div className="p-4 border-t border-token">
             <Link
-              href={`/list?department=${encodeURIComponent(dept.id)}&date=${range.from}`}
+              href={`/list?department=${encodeURIComponent(dept.id)}&date=${range.from}${user ? `&user=${encodeURIComponent(user)}` : ''}`}
               className="block text-center text-sm text-emerald-500 font-medium hover:underline"
             >
               فتح في سجل الطلبات الكامل ←

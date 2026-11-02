@@ -20,11 +20,16 @@ describe('roles', () => {
       expect(can('manager', p)).toBe(true)
     }
     expect(can('supervisor', PERMS.MANAGE_USERS)).toBe(false)
-    for (const p of ['CREATE_ORDERS', 'VIEW_REPORTS', 'EXPORT_REPORTS', 'DELETE_ORDERS', 'EDIT_MENU', 'SEND_NOTES'])
+    for (const p of ['CREATE_ORDERS', 'VIEW_DASHBOARD', 'VIEW_REPORTS', 'EXPORT_REPORTS', 'DELETE_ORDERS', 'EDIT_MENU', 'SEND_NOTES'])
       expect(can('supervisor', PERMS[p])).toBe(true)
     expect(can('distributor', PERMS.CREATE_ORDERS)).toBe(true)
     expect(can('distributor', PERMS.VIEW_REPORTS)).toBe(false)
     expect(can('specialist', PERMS.EXPORT_REPORTS)).toBe(true)
+    // Specialists enter orders and read the log, but do not see the dashboard.
+    expect(can('specialist', PERMS.CREATE_ORDERS)).toBe(true)
+    expect(can('specialist', PERMS.VIEW_REPORTS)).toBe(true)
+    expect(can('specialist', PERMS.VIEW_DASHBOARD)).toBe(false)
+    expect(can('specialist', PERMS.EDIT_MENU)).toBe(false)
     expect(can('specialist', PERMS.DELETE_ORDERS)).toBe(false)
     expect(can('specialist', PERMS.SEND_NOTES)).toBe(false)
     expect(can('unknown', PERMS.CREATE_ORDERS)).toBe(false)
@@ -32,7 +37,7 @@ describe('roles', () => {
   it('sends each role to its home page', () => {
     expect(homeFor('sysadmin')).toBe('/')
     expect(homeFor('supervisor')).toBe('/')
-    expect(homeFor('specialist')).toBe('/')
+    expect(homeFor('specialist')).toBe('/list')
     expect(homeFor('distributor')).toBe('/orders')
     expect(homeFor('nobody')).toBe('/login')
   })

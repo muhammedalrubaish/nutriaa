@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
-import { Download, Filter, ListChecks, Printer, Trash2 } from 'lucide-react'
+import { Download, Filter, ListChecks, Printer, Trash2, Users } from 'lucide-react'
 import Nav from '@/components/Nav'
 import Spinner from '@/components/Spinner'
 import { useAuth } from '@/lib/useAuth'
 import { useDepartments } from '@/lib/useDepartments'
 import { can, PERMS } from '@/lib/roles'
 import { DAY_BY_ID, MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
-import { fmtDate, timeAgo } from '@/lib/format'
+import { fmtDate, nameLabels, timeAgo } from '@/lib/format'
 import { exportOrdersXlsx, printOrderCards } from '@/lib/export'
 
 export default function List() {
@@ -18,29 +18,45 @@ export default function List() {
   const [orders, setOrders] = useState([])
   const [department, setDepartment] = useState('')
   const [date, setDate] = useState('')
+  const [userFilter, setUserFilter] = useState('')
+  const [staff, setStaff] = useState([])
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     if (!router.isReady) return
     if (router.query.department) setDepartment(String(router.query.department))
     if (router.query.date) setDate(String(router.query.date))
+    if (router.query.user) setUserFilter(String(router.query.user))
   }, [router.isReady])
+
+  useEffect(() => {
+    if (!user) return
+    fetch('/api/staff')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setStaff(nameLabels(d?.users)))
+      .catch(() => {})
+  }, [user])
 
   const load = useCallback(() => {
     const p = new URLSearchParams()
     if (department) p.set('department', department)
     if (date) p.set('date', date)
+    if (userFilter) p.set('user', userFilter)
     fetch('/api/orders?' + p.toString())
       .then((r) => r.json())
       .then((d) => setOrders(d.orders || []))
       .catch(() => {})
-  }, [department, date])
+  }, [department, date, userFilter])
 
   useEffect(() => {
     if (user) load()
   }, [user, load])
 
   if (loading || !user) return <Spinner />
+
+  const userName = staff.find((u) => u.username === userFilter)?.label || ''
+  // Used as the print window title (the default PDF file name) and the Excel file name.
+  const fileTitle = ['بطاقات الوجبات', userName, date].filter(Boolean).join(' - ')
 
   const canDelete = can(user.role, PERMS.DELETE_ORDERS)
   const canExport = can(user.role, PERMS.EXPORT_REPORTS)
@@ -74,14 +90,14 @@ export default function List() {
           {canExport && (
             <div className="flex gap-2 flex-wrap">
               <button
-                onClick={() => printOrderCards(orders, byId)}
+                onClick={() => printOrderCards(orders, byId, fileTitle)}
                 disabled={orders.length === 0}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:opacity-50"
               >
                 <Printer size={18} /> طباعة بطاقات ({orders.length})
               </button>
               <button
-                onClick={() => exportOrdersXlsx(orders, byId)}
+                onClick={() => exportOrdersXlsx(orders, byId, ['تقرير-الطلبات', userName].filter(Boolean).join('-'))}
                 disabled={orders.length === 0}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
               >
@@ -105,11 +121,23 @@ export default function List() {
             ))}
           </select>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field rounded-lg p-2 text-sm" />
-          {(department || date) && (
+          <label className="flex items-center gap-2">
+            <Users size={16} className="muted shrink-0" />
+            <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="field rounded-lg p-2 text-sm">
+              <option value="">كل المستخدمين</option>
+              {staff.map((u) => (
+                <option key={u.username} value={u.username}>
+                  {u.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {(department || date || userFilter) && (
             <button
               onClick={() => {
                 setDepartment('')
                 setDate('')
+                setUserFilter('')
               }}
               className="text-sm muted hover:text-emerald-500"
             >

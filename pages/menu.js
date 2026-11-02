@@ -32,8 +32,10 @@ export default function Menu() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ menu }),
       })
-      setStatus(r.ok ? 'saved' : 'idle')
-      if (r.ok) setTimeout(() => setStatus('idle'), 2500)
+      const d = await r.json().catch(() => ({}))
+      // 'notified': something actually changed, so staff got an alert; 'saved': nothing to announce.
+      setStatus(r.ok ? (d.changed?.length ? 'notified' : 'saved') : 'idle')
+      if (r.ok) setTimeout(() => setStatus('idle'), 3000)
     } catch {
       setStatus('idle')
     }
@@ -62,11 +64,17 @@ export default function Menu() {
               onClick={save}
               disabled={status === 'saving'}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-white transition-colors ${
-                status === 'saved' ? 'bg-emerald-500' : 'bg-emerald-600 hover:bg-emerald-500'
+                status === 'saved' || status === 'notified' ? 'bg-emerald-500' : 'bg-emerald-600 hover:bg-emerald-500'
               }`}
             >
               <Save size={18} />
-              {status === 'saving' ? 'جارٍ الحفظ...' : status === 'saved' ? 'تم الحفظ' : 'حفظ القائمة'}
+              {status === 'saving'
+                ? 'جارٍ الحفظ...'
+                : status === 'notified'
+                  ? 'تم الحفظ وتنبيه الموظفين'
+                  : status === 'saved'
+                    ? 'لا توجد تغييرات'
+                    : 'حفظ القائمة'}
             </button>
           )}
         </div>

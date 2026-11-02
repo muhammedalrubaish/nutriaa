@@ -11,7 +11,7 @@ import { clearAuthCache } from '@/lib/useAuth'
 import { invalidateDepartments } from '@/lib/useDepartments'
 
 const ITEMS = [
-  { href: '/', label: 'المؤشرات', icon: LayoutDashboard, perm: PERMS.VIEW_REPORTS },
+  { href: '/', label: 'المؤشرات', icon: LayoutDashboard, perm: PERMS.VIEW_DASHBOARD },
   { href: '/orders', label: 'إدخال طلب', icon: ClipboardEdit, perm: PERMS.CREATE_ORDERS },
   { href: '/list', label: 'السجل', icon: ListChecks, perm: PERMS.VIEW_REPORTS },
   { href: '/menu', label: 'القائمة', icon: CalendarDays, perm: PERMS.CREATE_ORDERS },
