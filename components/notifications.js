@@ -1,26 +1,27 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  Bell, BellOff, BellRing, AlertTriangle, CheckCheck, ClipboardCheck, MessageSquare, Trash2, X,
+  Bell, BellOff, BellRing, AlertTriangle, CalendarDays, CheckCheck, ClipboardCheck, MessageSquare, Trash2, X,
 } from 'lucide-react'
 import { can, PERMS } from '@/lib/roles'
-import { MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
+import { DAY_BY_ID, MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
 import { timeAgo } from '@/lib/format'
 import { riyadhDate } from '@/lib/time'
 import { useDepartments } from '@/lib/useDepartments'
 
-const EMPTY = { alerts: [], notes: [], orders: [] }
+const EMPTY = { alerts: [], notes: [], orders: [], menu: [] }
 const OPEN_EVENT = 'notifs:open'
 
-// Dismissals: { date, alerts:[deptIds], notes:[noteIds], orders:[orderIds] }.
+// Dismissals: { date, alerts:[deptIds], notes:[noteIds], orders:[orderIds], menu:[menuChangeIds] }.
 // Alert and order dismissals reset daily (Riyadh date); both lists only ever hold today's items.
+// Note and menu-change dismissals are kept, since those items stay listed for several days.
 function readDismissed() {
-  const fresh = { date: riyadhDate(), alerts: [], notes: [], orders: [] }
+  const fresh = { date: riyadhDate(), alerts: [], notes: [], orders: [], menu: [] }
   try {
     const raw = localStorage.getItem('dismissed_notifs')
     if (!raw) return fresh
     const d = JSON.parse(raw)
-    if (d.date !== riyadhDate()) return { ...fresh, notes: d.notes || [] }
+    if (d.date !== riyadhDate()) return { ...fresh, notes: d.notes || [], menu: d.menu || [] }
     return { ...fresh, ...d }
   } catch {
     return fresh
@@ -39,8 +40,12 @@ function visible(data, dismissed) {
     alerts: (d.alerts || []).filter((a) => !dismissed.alerts.includes(a.department)),
     notes: (d.notes || []).filter((n) => !dismissed.notes.includes(n.id)),
     orders: (d.orders || []).filter((o) => !dismissed.orders.includes(o.id)),
+    menu: (d.menuChanges || []).filter((m) => !(dismissed.menu || []).includes(m.id)),
   }
 }
+
+const menuDayLine = (c) => `${DAY_BY_ID[c.day]?.name || c.day}: ${c.mainMeal || '—'}${c.optionalItem ? ` / ${c.optionalItem}` : ''}`
+const menuDays = (m) => m.days.map((c) => DAY_BY_ID[c.day]?.name || c.day).join('، ')
 
 const orderLine = (o) =>
   `غرفة ${o.room} · سرير ${bedLabel(o.bed)} · ${personTypeName(o.personType)} · ${MEAL_TIME_BY_ID[o.mealTime]?.name || o.mealTime}`
@@ -69,14 +74,14 @@ export function NotificationsBell({ user, data, setData }) {
   }, [])
 
   const canDelete = can(user?.role, PERMS.SEND_NOTES)
-  const { alerts, notes, orders } = visible(data, dismissed)
-  const count = alerts.length + notes.length + orders.length
+  const { alerts, notes, orders, menu } = visible(data, dismissed)
+  const count = alerts.length + notes.length + orders.length + menu.length
 
   const save = (d) => {
     setDismissed(d)
     writeDismissed(d)
   }
-  const dismiss = (kind, id) => save({ ...dismissed, date: riyadhDate(), [kind]: [...dismissed[kind], id] })
+  const dismiss = (kind, id) => save({ ...dismissed, date: riyadhDate(), [kind]: [...(dismissed[kind] || []), id] })
   const deleteNote = async (id) => {
     await fetch('/api/notes?id=' + encodeURIComponent(id), { method: 'DELETE' }).catch(() => {})
     dismiss('notes', id)
@@ -88,6 +93,8 @@ export function NotificationsBell({ user, data, setData }) {
       alerts: (data?.alerts || []).map((a) => a.department),
       notes: [...dismissed.notes, ...(data?.notes || []).map((n) => n.id)],
       orders: [...dismissed.orders, ...(data?.orders || []).map((o) => o.id)],
+      // Only ids still listed, so the stored list stays small.
+      menu: (data?.menuChanges || []).map((m) => m.id),
     })
 
   return (
@@ -127,6 +134,28 @@ export function NotificationsBell({ user, data, setData }) {
             </div>
           </div>
           <div className="max-h-[70vh] overflow-y-auto">
+            {menu.length > 0 && (
+              <Group title="تعديلات قائمة الوجبات" count={menu.length}>
+                {menu.map((m) => (
+                  <Item
+                    key={m.id}
+                    icon={CalendarDays}
+                    tone="text-violet-500 bg-violet-500/10"
+                    title={`تم تعديل القائمة — ${menuDays(m)}`}
+                    onDismiss={() => dismiss('menu', m.id)}
+                  >
+                    {m.days.map((c) => (
+                      <p key={c.day} className="text-xs muted mt-0.5">
+                        {menuDayLine(c)}
+                      </p>
+                    ))}
+                    <p className="text-[11px] muted mt-1">
+                      {m.createdByName} · {timeAgo(m.createdAt)}
+                    </p>
+                  </Item>
+                ))}
+              </Group>
+            )}
             {orders.length > 0 && (
               <Group title="طلبات جديدة اليوم" count={orders.length}>
                 {orders.map((o) => (
@@ -356,6 +385,10 @@ function toastFor(item) {
     const o = item.value
     return { icon: ClipboardCheck, tone: 'bg-sky-500', title: `طلب جديد — ${o.departmentName || o.department}`, body: orderLine(o) }
   }
+  if (item.kind === 'menu') {
+    const m = item.value
+    return { icon: CalendarDays, tone: 'bg-violet-500', title: `تم تعديل قائمة الوجبات — ${menuDays(m)}`, body: `بواسطة ${m.createdByName}` }
+  }
   if (item.kind === 'note') {
     const n = item.value
     return { icon: MessageSquare, tone: 'bg-emerald-500', title: `ملاحظة من ${n.createdByName}`, body: n.message }
@@ -371,9 +404,10 @@ export function DynamicIsland({ data }) {
 
   useEffect(() => {
     if (!data) return
-    const { alerts, notes, orders } = visible(data, readDismissed())
-    // Newest first: orders and notes come sorted by the API.
+    const { alerts, notes, orders, menu } = visible(data, readDismissed())
+    // Newest first: orders and notes come sorted by the API. Menu edits lead: they change what staff order.
     const items = [
+      ...menu.map((m) => ({ key: 'm:' + m.id, kind: 'menu', value: m })),
       ...orders.map((o) => ({ key: 'o:' + o.id, kind: 'order', value: o })),
       ...notes.map((n) => ({ key: 'n:' + n.id, kind: 'note', value: n })),
       ...alerts.map((a) => ({ key: 'a:' + a.department, kind: 'alert', value: a })),

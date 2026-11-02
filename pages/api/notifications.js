@@ -1,7 +1,7 @@
 import { query } from '@/lib/db'
 import { route } from '@/lib/api'
 import { can, PERMS } from '@/lib/roles'
-import { listDepartments, getMinDaily, rowToOrder, todayCountsByDepartment } from '@/lib/repo'
+import { listDepartments, getMinDaily, recentMenuChanges, rowToOrder, todayCountsByDepartment } from '@/lib/repo'
 import { riyadhDate } from '@/lib/time'
 
 // How many of today's newest orders are surfaced in the bell.
@@ -13,7 +13,7 @@ export default route({
       const today = riyadhDate()
       // Order notifications go to whoever reviews orders, not to the staff entering them.
       const withOrders = can(user.role, PERMS.VIEW_REPORTS)
-      const [departments, minDaily, counts, notes, orders] = await Promise.all([
+      const [departments, minDaily, counts, notes, orders, menuChanges] = await Promise.all([
         listDepartments(),
         getMinDaily(),
         todayCountsByDepartment(today),
@@ -29,6 +29,7 @@ export default route({
               [today],
             )
           : [],
+        recentMenuChanges(),
       ])
       const deptName = Object.fromEntries(departments.map((d) => [d.id, d.name]))
       const alerts = departments
@@ -59,6 +60,8 @@ export default route({
             createdAt: o.createdAt,
           }
         }),
+        // The editor already knows what they changed.
+        menuChanges: menuChanges.filter((m) => m.createdBy !== user.username),
         minDaily,
       })
     },

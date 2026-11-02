@@ -22,7 +22,7 @@ function db(rows = ROWS) {
     if (/from orders/.test(sql) && /group by 1, 2, 3, 4, 5/.test(sql)) return rows
     if (/from departments/.test(sql)) return DEPTS
     if (/group by department/.test(sql)) return [{ department: 'ob1', n: 7 }]
-    if (/from users order by name/.test(sql)) return [{ username: 'dist', name: 'موزعة' }, { username: 'sup', name: 'مشرف' }]
+    if (/from users\s+union all/.test(sql)) return [{ username: 'dist', name: 'موزعة' }, { username: 'sup', name: 'مشرف' }]
     if (/from notes/.test(sql)) return []
     if (/from orders/.test(sql) && /limit 30/.test(sql)) return []
     return []
@@ -37,7 +37,7 @@ describe('GET /api/stats', () => {
   it('aggregates a custom range and passes Riyadh day bounds', async () => {
     query.mockImplementation(db())
     const res = mockRes()
-    await stats(mockReq({ user: 'u_spec', query: { from: '2026-10-01', to: '2026-10-20' } }), res)
+    await stats(mockReq({ user: 'u_sup', query: { from: '2026-10-01', to: '2026-10-20' } }), res)
     expect(res.statusCode).toBe(200)
     expect(statsQuery()[1]).toEqual(['2026-10-01', '2026-10-20'])
     expect(res.body.summary).toEqual({ total: 10, patient: 8, companion: 2, avgDaily: 0.5 })
@@ -63,7 +63,7 @@ describe('GET /api/stats', () => {
   it('uses hourly buckets for a single day', async () => {
     query.mockImplementation(db([{ ...ROWS[0], d: '2026-10-05', h: 13 }]))
     const res = mockRes()
-    await stats(mockReq({ user: 'u_spec', query: { from: '2026-10-05', to: '2026-10-05' } }), res)
+    await stats(mockReq({ user: 'u_sup', query: { from: '2026-10-05', to: '2026-10-05' } }), res)
     expect(statsQuery()[0]).toMatch(/extract\(hour/)
     expect(res.body.trend.unit).toBe('hour')
     expect(res.body.trend.points).toHaveLength(24)
@@ -73,11 +73,11 @@ describe('GET /api/stats', () => {
   it('groups long ranges by week and month', async () => {
     query.mockImplementation(db())
     let res = mockRes()
-    await stats(mockReq({ user: 'u_spec', query: { from: '2026-08-01', to: '2026-10-30' } }), res)
+    await stats(mockReq({ user: 'u_sup', query: { from: '2026-08-01', to: '2026-10-30' } }), res)
     expect(res.body.trend.unit).toBe('week')
     expect(res.body.trend.points.every((p) => new Date(p.key + 'T00:00:00Z').getUTCDay() === 0)).toBe(true)
     res = mockRes()
-    await stats(mockReq({ user: 'u_spec', query: { from: '2026-01-01', to: '2026-10-30' } }), res)
+    await stats(mockReq({ user: 'u_sup', query: { from: '2026-01-01', to: '2026-10-30' } }), res)
     expect(res.body.trend.unit).toBe('month')
     expect(res.body.trend.points.map((p) => p.key)).toHaveLength(10)
   })
@@ -86,16 +86,27 @@ describe('GET /api/stats', () => {
     query.mockImplementation(db())
     for (const q of [{ from: 'x' }, { from: '2026-10-10', to: '2026-10-01' }, { from: '2020-01-01', to: '2026-01-01' }]) {
       const res = mockRes()
-      await stats(mockReq({ user: 'u_spec', query: q }), res)
+      await stats(mockReq({ user: 'u_sup', query: q }), res)
       expect(res.statusCode).toBe(400)
     }
   })
 
-  it('is closed to distributors', async () => {
+  it('is closed to distributors and specialists', async () => {
+    query.mockImplementation(db())
+    for (const user of ['u_dist', 'u_spec']) {
+      const res = mockRes()
+      await stats(mockReq({ user }), res)
+      expect(res.statusCode).toBe(403)
+    }
+  })
+
+  it('lists users by name, including authors of orders whose account was deleted', async () => {
     query.mockImplementation(db())
     const res = mockRes()
-    await stats(mockReq({ user: 'u_dist' }), res)
-    expect(res.statusCode).toBe(403)
+    await stats(mockReq({ user: 'u_sup' }), res)
+    expect(res.body.users).toEqual([{ username: 'dist', name: 'موزعة' }, { username: 'sup', name: 'مشرف' }])
+    const sql = query.mock.calls.map(([q]) => q).find((q) => /union all/.test(q))
+    expect(sql).toMatch(/not exists \(select 1 from users/)
   })
 })
 
