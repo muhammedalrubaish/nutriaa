@@ -69,6 +69,8 @@ All idempotent (safe to re-run) and applied by `npm run db:migrate`:
 - `006_menu_optionals_meal_library.sql` — `menu.optional_item_2/_3` and the `meal_library` table (seeded from the menu and past orders).
 - `007_note_recipients.sql` — `notes.audience/target_roles`, `note_recipients`, `note_reads`.
 
+Launching on the existing production database: see `deploy/DEPLOY-PLAN.md` (Arabic) — run `deploy/2026-11-launch-old-db.sql` (005–007 in one idempotent transaction, recorded in `schema_migrations`) **before** merging; `deploy/rollback-2026-11-launch-old-db.sql` undoes it.
+
 Printing and PDF never leave the page: cards and reports open in an in-app A4 view (`lib/printView.js`) with «طباعة» / «PDF» / «رجوع»; PDFs are built from the same sheets (`lib/report/pdf.js`, html2canvas-pro + jsPDF) and handed over with the iOS-safe `saveFile`.
 
 ### Supabase
