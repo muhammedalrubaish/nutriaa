@@ -2,7 +2,7 @@ import { query } from '@/lib/db'
 import { route } from '@/lib/api'
 import { PERMS } from '@/lib/roles'
 import { isYmd } from '@/lib/time'
-import { deptMap, insertOrder, notifyNewOrders, rowToOrder, validateOrder } from '@/lib/repo'
+import { DuplicateOrderError, deptMap, duplicateMessage, insertOrder, notifyNewOrders, rowToOrder, validateOrder } from '@/lib/repo'
 
 export default route({
   GET: {
@@ -46,7 +46,15 @@ export default route({
       const depts = await deptMap()
       const { error, value } = validateOrder(req.body || {}, depts)
       if (error) return res.status(400).json({ error })
-      const order = await insertOrder(value, user)
+      let order
+      try {
+        order = await insertOrder(value, user)
+      } catch (e) {
+        if (!(e instanceof DuplicateOrderError)) throw e
+        return res.status(409).json({ error: duplicateMessage(e.existing), duplicate: e.existing })
+      }
+      // A replayed submit key is the same order, already announced.
+      if (order.replay) return res.status(200).json({ order })
       await notifyNewOrders(user, { order, deptName: depts[order.department]?.name })
       return res.status(201).json({ order })
     },
