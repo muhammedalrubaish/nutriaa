@@ -91,7 +91,7 @@ export default function Users() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-8 space-y-6">
         <PageHeader
           icon={UsersIcon}
           title="إدارة الموظفين والصلاحيات"
