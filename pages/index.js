@@ -111,7 +111,7 @@ export default function Dashboard() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-8 space-y-8">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-2xl font-bold">لوحة المؤشرات</h2>
