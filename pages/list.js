@@ -44,6 +44,8 @@ export default function List() {
     const p = new URLSearchParams()
     if (department) p.set('department', department)
     if (date) p.set('date', date)
+    // QA: the log, its cards and its Excel follow the MEAL date, not the entry date.
+    p.set('by', 'meal')
     if (userFilter) p.set('user', userFilter)
     fetch('/api/orders?' + p.toString())
       .then((r) => r.json())
@@ -70,14 +72,14 @@ export default function List() {
   const logReport = async () => {
     setReporting(true)
     try {
-      const days = orders.map((o) => riyadhDate(new Date(o.createdAt))).sort()
+      const days = orders.map((o) => o.mealDate || riyadhDate(new Date(o.createdAt))).sort()
       const from = date || days[0] || riyadhDate()
       const to = date || days[days.length - 1] || from
       const menu = await fetch('/api/menu').then((r) => r.json()).then((d) => d.menu).catch(() => null)
       await openReport({
         kind: 'log',
         title: 'تقرير سجل الطلبات',
-        periodLabel: from === to ? from : `${from} → ${to}`,
+        periodLabel: from === to ? from : `${from} إلى ${to}`,
         filtersLabel: [
           department ? `القسم: ${byId[department]?.name || department}` : '',
           userFilter ? `المستخدم: ${userName}` : '',
@@ -119,7 +121,7 @@ export default function List() {
             </div>
             <div>
               <h2 className="text-2xl font-bold">سجل الطلبات</h2>
-              <p className="text-sm muted">جميع طلبات الوجبات مع تاريخ ووقت التسجيل والوقت المنقضي</p>
+              <p className="text-sm muted">جميع طلبات الوجبات حسب تاريخ الوجبة، مع وقت التسجيل والوقت المنقضي</p>
             </div>
           </div>
           {canExport && (
@@ -162,7 +164,10 @@ export default function List() {
               </option>
             ))}
           </select>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field rounded-lg p-2 text-sm" />
+          <label className="flex items-center gap-2 text-sm">
+            <span className="muted whitespace-nowrap">تاريخ الوجبة</span>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} title="تاريخ الوجبة" className="field rounded-lg p-2 text-sm" />
+          </label>
           <label className="flex items-center gap-2">
             <Users size={16} className="muted shrink-0" />
             <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="field rounded-lg p-2 text-sm">
@@ -200,11 +205,12 @@ export default function List() {
                   <Th>اسم المريض</Th>
                   <Th>النوع</Th>
                   <Th>اليوم</Th>
+                  <Th>تاريخ الوجبة</Th>
                   <Th>الوجبة</Th>
                   <Th>الأساسية</Th>
                   <Th>إضافات</Th>
                   <Th>الموظف</Th>
-                  <Th>التاريخ والوقت</Th>
+                  <Th>وقت التسجيل</Th>
                   <Th>منذ</Th>
                   {canDelete && <Th />}
                 </tr>
@@ -226,6 +232,7 @@ export default function List() {
                       </span>
                     </Td>
                     <Td className="muted">{o.day ? DAY_BY_ID[o.day]?.name || o.day : '—'}</Td>
+                    <Td className="muted text-xs whitespace-nowrap" dir="ltr">{o.mealDate || '—'}</Td>
                     <Td>{MEAL_TIME_BY_ID[o.mealTime]?.name || o.mealTime}</Td>
                     <Td>
                       <span className={o.mealType === 'main' ? 'text-green-600 dark:text-green-400' : o.mealType === 'optional' ? 'text-sky-500' : 'text-violet-400'}>

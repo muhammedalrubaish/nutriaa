@@ -67,4 +67,14 @@ describe('meal cards', () => {
     const names = [...pages[0].matchAll(/class="name">([^<]+)</g)].map((m) => m[1])
     expect(names).toEqual(['A', 'B', 'C'])
   })
+
+  it('QA: long names wrap at a smaller size and are shortened in code, never by CSS ellipsis', () => {
+    const long = 'عبدالرحمن بن محمد بن عبدالله بن سليمان آل فلان الطويل جداً جداً جداً'
+    const html = cardHtml(order(1, { patientName: long }), 'قسم')
+    expect(html).toContain('class="name long"')
+    expect(html).toContain('…')
+    expect(CARDS_CSS).not.toMatch(/text-overflow|line-clamp/)
+    expect(cardHtml(order(2), 'قسم')).toContain('class="name"')
+  })
 })
+

@@ -19,6 +19,7 @@ const OPT_FIELDS = [
 export default function Menu() {
   const { user, loading } = useAuth({ requirePerm: PERMS.CREATE_ORDERS })
   const [menu, setMenu] = useState(null)
+  const [saved, setSaved] = useState(null) // the menu as last loaded/saved (for the «day loses its main meal» check)
   const [library, setLibrary] = useState([])
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
@@ -30,7 +31,10 @@ export default function Menu() {
   const loadMenu = () =>
     fetch('/api/menu')
       .then((r) => r.json())
-      .then((d) => setMenu(d.menu))
+      .then((d) => {
+        setMenu(d.menu)
+        setSaved(d.menu)
+      })
       .catch(() => {})
   const loadLibrary = () =>
     fetch('/api/meals')
@@ -69,8 +73,10 @@ export default function Menu() {
     const noMain = WEEK_DAYS.filter((d) => !(data[d.id]?.mainMeal || '').trim())
     const optNoMain = noMain.filter((d) => OPT_FIELDS.some((f) => (data[d.id]?.[f.key] || '').trim()))
     if (optNoMain.length) return setError(`لا يمكن حفظ وجبات اختيارية بدون وجبة أساسية: ${optNoMain.map((d) => d.name).join('، ')}`)
-    // A day without a main meal blocks order entry for that day, so ask first.
-    if (noMain.length && !confirm(`الأيام التالية بدون وجبة أساسية ولن يمكن إدخال طلبات لها:\n${noMain.map((d) => d.name).join('، ')}\n\nهل تريد الحفظ؟`)) return
+    // A day losing its main meal blocks order entry for that day, so ask first. Days that were already
+    // empty (e.g. Friday/Saturday) do not ask again, so an unchanged menu or template saves directly.
+    const lost = noMain.filter((d) => (saved?.[d.id]?.mainMeal || '').trim())
+    if (lost.length && !confirm(`الأيام التالية ستصبح بدون وجبة أساسية ولن يمكن إدخال طلبات لها:\n${lost.map((d) => d.name).join('، ')}\n\nهل تريد الحفظ؟`)) return
     setStatus('saving')
     try {
       const r = await fetch('/api/menu', {
@@ -84,6 +90,7 @@ export default function Menu() {
         return setStatus('idle')
       }
       setMenu(d.menu)
+      setSaved(d.menu)
       setDirty(false)
       setPreview(null)
       loadLibrary()

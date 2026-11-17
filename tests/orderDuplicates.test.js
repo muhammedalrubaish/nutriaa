@@ -27,6 +27,9 @@ function fakeDb() {
   const rows = []
   const handler = sqlRouter((sql, p) => {
     if (/from departments/.test(sql)) return [DEPT]
+    // Weekly menu: a main meal every day except Friday (QA: no orders for a day without a main meal).
+    if (/from menu/.test(sql))
+      return ['sun', 'mon', 'tue', 'wed', 'thu', 'sat'].map((day) => ({ day, main_meal: 'كبسة', optional_item: '', optional_item_2: '', optional_item_3: '' }))
     if (/insert into orders/.test(sql)) {
       const created = new Date()
       const row = {
@@ -87,7 +90,7 @@ describe('duplicate rule (meal_date)', () => {
     expect(res.statusCode).toBe(409)
     expect(res.body.duplicate).toMatchObject({ createdByName: 'موزعة', day: 'wed', mealDate: '2026-11-18' })
     expect(res.body.error).toContain('سجّله موزعة')
-    expect(res.body.error).toContain('غداء الأربعاء 2026-11-18')
+    expect(res.body.error).toContain('غداء الأربعاء 18/11/2026')
     expect(db.rows).toHaveLength(1)
     // No push for a rejected duplicate.
     expect(sendToAll).toHaveBeenCalledTimes(1)
@@ -146,5 +149,50 @@ describe('duplicate rule (meal_date)', () => {
 
   it('duplicateMessage falls back to a generic text without details', () => {
     expect(duplicateMessage(null)).toContain('مسجّل مسبقًا')
+  })
+})
+
+describe('QA round 1: orders for a day without a main meal', () => {
+  it('order entry rejects Friday (no main meal on the menu) with 400', async () => {
+    vi.setSystemTime(TUE)
+    const res = await post({ ...BODY, day: 'fri' })
+    expect(res.statusCode).toBe(400)
+    expect(res.body.error).toContain('لا توجد وجبة أساسية ليوم الجمعة')
+    expect(db.rows).toHaveLength(0)
+  })
+  it('bulk import rejects the Friday row with its Excel row number and saves the others', async () => {
+    vi.setSystemTime(TUE)
+    const res = mockRes()
+    await bulk(mockReq({ method: 'POST', user: 'u_sys', body: { orders: [{ ...BODY, row: 2 }, { ...BODY, day: 'fri', row: 3 }] } }), res)
+    expect(res.body.imported).toBe(1)
+    expect(res.body.errors).toEqual([expect.objectContaining({ row: 3, noMain: true, error: expect.stringContaining('الجمعة') })])
+    expect(db.rows.map((r) => r.day)).toEqual(['wed'])
+  })
+})
+
+describe('QA round 1: duplicate alert wording', () => {
+  it('uses Arabic ص/م with Latin digits and a d/m/y meal date', () => {
+    const msg = duplicateMessage({ mealTime: 'lunch', day: 'wed', mealDate: '2026-11-18', createdByName: 'نورة', createdAt: '2026-11-17T19:05:00Z' })
+    expect(msg).toBe('هذا الطلب مسجّل مسبقًا (غداء الأربعاء 18/11/2026) — سجّله نورة في 17/11/2026 10:05 م')
+    expect(duplicateMessage({ mealTime: 'lunch', day: 'wed', createdByName: 'x', createdAt: '2026-11-16T21:30:00Z' })).toMatch(/17\/11\/2026 12:30 ص$/)
+    expect(msg).not.toMatch(/am|pm/i)
+  })
+})
+
+
+describe('QA round 1: the log filters by meal date', () => {
+  it('by=meal filters and sorts on meal_date; the default stays on the entry date', async () => {
+    const seen = []
+    query.mockImplementation(sqlRouter((sql, p) => (/from orders/.test(sql) ? (seen.push({ sql, p }), []) : [])))
+    let res = mockRes()
+    await orders(mockReq({ method: 'GET', user: 'u_sup', query: { date: '2026-11-18', by: 'meal' } }), res)
+    expect(res.statusCode).toBe(200)
+    expect(seen[0].sql).toMatch(/coalesce\(meal_date, .*\) >= \$1::date and coalesce\(meal_date, .*\) <= \$2::date/s)
+    expect(seen[0].sql).toMatch(/order by coalesce\(meal_date/)
+    expect(seen[0].p).toEqual(['2026-11-18', '2026-11-18'])
+    res = mockRes()
+    await orders(mockReq({ method: 'GET', user: 'u_sup', query: { date: '2026-11-18' } }), res)
+    expect(seen[1].sql).toMatch(/created_at >= /)
+    expect(seen[1].sql).not.toMatch(/meal_date/)
   })
 })

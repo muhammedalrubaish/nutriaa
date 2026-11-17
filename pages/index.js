@@ -113,7 +113,7 @@ export default function Dashboard() {
     return {
       kind: 'period',
       title: 'تقرير لوحة المؤشرات',
-      periodLabel: range.from === range.to ? range.from : `${range.from} → ${range.to}`,
+      periodLabel: range.from === range.to ? range.from : `${range.from} إلى ${range.to}`,
       filtersLabel: userFilter ? `المستخدم: ${userName}` : '',
       orders: o.orders || [],
       from: range.from,

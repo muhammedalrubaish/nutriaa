@@ -1,6 +1,6 @@
 import { route } from '@/lib/api'
 import { PERMS } from '@/lib/roles'
-import { DuplicateOrderError, deptMap, duplicateMessage, insertOrder, notifyNewOrders, validateOrder } from '@/lib/repo'
+import { DuplicateOrderError, deptMap, duplicateMessage, insertOrder, noMainMealError, notifyNewOrders, readMenu, validateOrder } from '@/lib/repo'
 
 export default route({
   POST: {
@@ -9,7 +9,7 @@ export default route({
       const list = Array.isArray(req.body?.orders) ? req.body.orders : null
       if (!list) return res.status(400).json({ error: 'لا توجد طلبات للاستيراد' })
       if (list.length > 1000) return res.status(400).json({ error: 'الحد الأقصى 1000 طلب في المرة الواحدة' })
-      const depts = await deptMap()
+      const [depts, menu] = await Promise.all([deptMap(), readMenu()])
       let imported = 0
       const errors = []
       let duplicates = 0
@@ -19,6 +19,12 @@ export default route({
         const { error, value } = validateOrder({ mealType: 'main', ...list[i], id: undefined }, depts)
         if (error) {
           errors.push({ index: i, row, error })
+          continue
+        }
+        // QA: same rule as the entry screen — no orders for a day without a main meal (e.g. Friday).
+        const noMain = noMainMealError(menu, value.day)
+        if (noMain) {
+          errors.push({ index: i, row, error: noMain, noMain: true })
           continue
         }
         try {
