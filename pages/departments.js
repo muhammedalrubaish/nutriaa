@@ -98,7 +98,7 @@ export default function Departments() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>إدارة الأقسام | قسم خدمات التغذية</title>
+        <title>إدارة الأقسام | قسم خدمات التغذية - نيوتريا</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />

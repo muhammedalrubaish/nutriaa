@@ -36,7 +36,7 @@ export default function Login() {
   return (
     <div className="min-h-screen app-bg flex items-center justify-center p-6" dir="rtl">
       <Head>
-        <title>تسجيل الدخول | قسم خدمات التغذية</title>
+        <title>تسجيل الدخول | قسم خدمات التغذية - نيوتريا</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <div className="absolute top-4 left-4">
@@ -49,7 +49,7 @@ export default function Login() {
             alt="تجمع القصيم الصحي"
             className="w-24 h-24 rounded-2xl object-cover shadow-xl shadow-black/30 mb-4"
           />
-          <h1 className="text-2xl font-bold">قسم خدمات التغذية</h1>
+          <h1 className="text-2xl font-bold">قسم خدمات التغذية - نيوتريا</h1>
           <p className="text-sm muted mt-1">مستشفى الولادة والأطفال ببريدة</p>
         </div>
         <form onSubmit={submit} className="card rounded-3xl p-7 space-y-5 backdrop-blur-xl">

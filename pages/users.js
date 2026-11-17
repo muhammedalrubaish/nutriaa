@@ -87,7 +87,7 @@ export default function Users() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>إدارة الموظفين | قسم خدمات التغذية</title>
+        <title>إدارة الموظفين | قسم خدمات التغذية - نيوتريا</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />

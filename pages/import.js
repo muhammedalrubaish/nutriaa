@@ -108,7 +108,7 @@ export default function Import() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>استيراد بيانات Excel | قسم خدمات التغذية</title>
+        <title>استيراد بيانات Excel | قسم خدمات التغذية - نيوتريا</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
@@ -180,7 +180,7 @@ export default function Import() {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="text-right border-b border-white/10">
-                    {['#', 'الاسم', 'القسم', 'الغرفة/السرير', 'النوع', 'اليوم', 'الوجبة', 'الإضافة', 'الحالة'].map((h) => (
+                    {['الصف', 'الاسم', 'القسم', 'الغرفة/السرير', 'النوع', 'اليوم', 'الوجبة', 'الإضافة', 'الحالة'].map((h) => (
                       <th key={h} className="py-2 px-3 muted font-medium text-xs whitespace-nowrap">
                         {h}
                       </th>
@@ -190,7 +190,7 @@ export default function Import() {
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={i} className={`border-b border-white/5 ${r.valid ? '' : 'bg-rose-500/5'}`}>
-                      <td className="py-2 px-3 muted text-xs">{i + 1}</td>
+                      <td className="py-2 px-3 muted text-xs">{r.row}</td>
                       <td className="py-2 px-3 font-medium">{r.patientName || <span className="muted">—</span>}</td>
                       <td className="py-2 px-3 text-xs">
                         {byId[r.department]?.name || <span className="text-rose-400">{r.department || '؟'}</span>}
@@ -236,8 +236,16 @@ export default function Import() {
                 تم استيراد <strong>{result.imported}</strong> طلب بنجاح
                 {result.failed > 0 && (
                   <>
-                    , فشل <strong>{result.failed}</strong>
+                    , لم يُستورد <strong>{result.failed}</strong>
+                    {result.duplicates > 0 && <> (منها {result.duplicates} مكرر)</>}
                   </>
+                )}
+                {result.errors?.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-rose-400 font-normal">
+                    {result.errors.slice(0, 50).map((e) => (
+                      <li key={`${e.index}`}>• الصف {e.row ?? e.index + 2}: {e.error}</li>
+                    ))}
+                  </ul>
                 )}
               </>
             )}

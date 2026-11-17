@@ -3,17 +3,19 @@ import Head from 'next/head'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
-  AlertTriangle, BarChart3, CalendarDays, ChevronLeft, Clock, Download, Filter, Send, User, UserPlus, Users, X,
+  AlertTriangle, Award, BarChart3, CalendarDays, CheckCheck, ChevronLeft, Clock, Download, FileText, Filter, Send, Trash2, TrendingDown,
+  TrendingUp, User, UserPlus, Users, Utensils, X,
 } from 'lucide-react'
 import Nav from '@/components/Nav'
 import Spinner from '@/components/Spinner'
 import { useAuth } from '@/lib/useAuth'
 import { useDepartments } from '@/lib/useDepartments'
-import { can, PERMS } from '@/lib/roles'
+import { ROLE_LIST, can, PERMS, roleName } from '@/lib/roles'
 import { MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
 import { colorClasses } from '@/lib/departments'
 import { fmtDate, nameLabels, timeAgo } from '@/lib/format'
-import { exportOrdersXlsx } from '@/lib/export'
+import { exportReportXlsx, openReport } from '@/lib/export'
+import { useLive } from '@/lib/useLive'
 import { monthStart, riyadhDate, weekStart } from '@/lib/time'
 
 const PERIODS = [
@@ -52,7 +54,9 @@ export default function Dashboard() {
   const [period, setPeriod] = useState('today')
   const [custom, setCustom] = useState({ from: '', to: '' })
   const [userFilter, setUserFilter] = useState('')
-  const { byId: deptById } = useDepartments({ all: true, enabled: !!user })
+  const { departments: deptList, byId: deptById } = useDepartments({ all: true, enabled: !!user })
+  const [reporting, setReporting] = useState('')
+  const [liveTick, setLiveTick] = useState(0)
 
   const range = periodRange(period, custom)
   const qs = rangeQuery(range, userFilter)
@@ -72,12 +76,15 @@ export default function Dashboard() {
         })
         .catch(() => {})
     load()
-    const t = setInterval(load, 15000)
+    // Live updates come through useLive below; this is only a slow safety net.
+    const t = setInterval(load, 60000)
     return () => {
       alive = false
       clearInterval(t)
     }
-  }, [user, qs])
+  }, [user, qs, liveTick])
+  // Note 10: a new order, note or menu edit anywhere refreshes the dashboard within seconds.
+  useLive(() => setLiveTick((n) => n + 1), !!user)
 
   if (loading || !user) return <Spinner />
 
@@ -97,17 +104,45 @@ export default function Dashboard() {
   // Expected volume for the period, so the department bars stay comparable across periods.
   const deptTarget = (stats?.minDaily || 5) * (stats?.days || 1)
 
-  const exportRange = async () => {
-    const r = await fetch('/api/orders?' + qs)
-    const d = await r.json()
-    const name = range.from === range.to ? `تقرير-${range.from}` : `تقرير-${range.from}_${range.to}`
-    exportOrdersXlsx(d.orders || [], deptById, userName ? `${name}-${userName}` : name)
+  // Notes 3 and 5: the period report (PDF in the same page, or Excel) for exactly what the dashboard shows.
+  const reportInput = async () => {
+    const [o, m] = await Promise.all([
+      fetch('/api/orders?' + qs).then((r) => r.json()),
+      fetch('/api/menu').then((r) => r.json()).catch(() => ({})),
+    ])
+    return {
+      kind: 'period',
+      title: 'تقرير لوحة المؤشرات',
+      periodLabel: range.from === range.to ? range.from : `${range.from} → ${range.to}`,
+      filtersLabel: userFilter ? `المستخدم: ${userName}` : '',
+      orders: o.orders || [],
+      from: range.from,
+      to: range.to,
+      departments: deptList,
+      deptById,
+      users: stats?.users || [],
+      menu: m.menu || null,
+      generatedBy: user.name,
+    }
+  }
+  const runReport = async (kind) => {
+    setReporting(kind)
+    try {
+      const r = await reportInput()
+      if (kind === 'pdf') await openReport(r)
+      else await exportReportXlsx(r)
+    } catch (e) {
+      console.error(e)
+      setError('تعذّر إنشاء التقرير')
+    } finally {
+      setReporting('')
+    }
   }
 
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>لوحة المؤشرات | قسم خدمات التغذية</title>
+        <title>لوحة المؤشرات | قسم خدمات التغذية - نيوتريا</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
@@ -118,13 +153,22 @@ export default function Dashboard() {
             <p className="text-sm muted mt-1">ملخص طلبات الوجبات — {scope}</p>
           </div>
           {canExport && (
-            <button
-              onClick={exportRange}
-              disabled={!sum.total}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
-            >
-              <Download size={18} /> تصدير تقرير الفترة
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => runReport('pdf')}
+                disabled={!sum.total || !!reporting}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
+              >
+                <FileText size={18} /> {reporting === 'pdf' ? 'جارٍ التجهيز...' : 'تقرير الفترة PDF'}
+              </button>
+              <button
+                onClick={() => runReport('xlsx')}
+                disabled={!sum.total || !!reporting}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold card-2 hover:border-emerald-500/40 transition-colors disabled:opacity-50"
+              >
+                <Download size={18} /> {reporting === 'xlsx' ? 'جارٍ التجهيز...' : 'Excel'}
+              </button>
+            </div>
           )}
         </div>
 
@@ -282,8 +326,8 @@ export default function Dashboard() {
             <h3 className="text-lg font-bold mb-4 self-start">نوع الشخص — {range.label}</h3>
             <Donut patient={person.patient || 0} companion={person.companion || 0} />
             <div className="flex gap-6 mt-4">
-              <Legend color="bg-emerald-500" label="المرضى" value={person.patient || 0} />
-              <Legend color="bg-sky-500" label="المرافقون" value={person.companion || 0} />
+              <Legend color="bg-sky-500" label="المرضى" value={person.patient || 0} />
+              <Legend color="bg-indigo-500" label="المرافقون" value={person.companion || 0} />
             </div>
           </section>
         </div>
@@ -316,8 +360,44 @@ export default function Dashboard() {
           </section>
         </div>
 
+        <MealsSection stats={stats} label={range.label} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Note 12: fixed chart over all time, independent of the filters above. */}
+          <section className="card rounded-3xl p-6">
+            <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
+              <Utensils size={18} className="text-emerald-500" /> مقارنة الوجبات بعدد الصرف
+            </h3>
+            <p className="text-xs muted mb-4">لكل الفترة منذ بداية النظام (لا تتأثر بالتصفية)</p>
+            <div className="space-y-3">
+              {(stats?.mealsAllTime || []).slice(0, 15).map((m) => (
+                <Bar key={m.name} label={m.name} value={m.total} max={Math.max(1, stats.mealsAllTime[0]?.total || 1)} />
+              ))}
+              {!stats?.mealsAllTime?.length && <p className="text-sm muted text-center py-6">لا توجد طلبات بعد.</p>}
+            </div>
+          </section>
+          {/* Note 13: orders entered by each specialist and distributor, all time. */}
+          <section className="card rounded-3xl p-6">
+            <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
+              <Users size={18} className="text-emerald-500" /> الأخصائيات والموزعات بعدد إدخال الطلبات
+            </h3>
+            <p className="text-xs muted mb-4">لكل الفترة منذ بداية النظام (لا تتأثر بالتصفية)</p>
+            <div className="space-y-3">
+              {(stats?.staffAllTime || []).map((u) => (
+                <Bar
+                  key={u.username}
+                  label={`${u.name} · ${roleName(u.role)}`}
+                  value={u.total}
+                  max={Math.max(1, ...(stats.staffAllTime || []).map((x) => x.total))}
+                />
+              ))}
+              {!stats?.staffAllTime?.length && <p className="text-sm muted text-center py-6">لا توجد حسابات أخصائيات أو موزعات.</p>}
+            </div>
+          </section>
+        </div>
+
         {canNotes ? (
-          <NoteForm />
+          <NotesPanel />
         ) : (
           <section className="card rounded-3xl p-6">
             <h3 className="text-lg font-bold mb-4">معلومة</h3>
@@ -379,7 +459,7 @@ function Donut({ patient, companion }) {
   return (
     <div className="relative w-40 h-40">
       <svg viewBox="0 0 140 140" className="w-full h-full -rotate-90">
-        <circle cx="70" cy="70" r={52} fill="none" strokeWidth="16" className="stroke-sky-500" />
+        <circle cx="70" cy="70" r={52} fill="none" strokeWidth="16" className="stroke-indigo-500" />
         <circle
           cx="70"
           cy="70"
@@ -387,7 +467,7 @@ function Donut({ patient, companion }) {
           fill="none"
           strokeWidth="16"
           strokeLinecap="round"
-          className="stroke-emerald-500"
+          className="stroke-sky-500"
           strokeDasharray={`${arc} ${circ - arc}`}
         />
       </svg>
@@ -399,67 +479,271 @@ function Donut({ patient, companion }) {
   )
 }
 
-function NoteForm() {
+/** Note 5: meals ranked by orders in the period, with shares, top 3 / bottom 3 and patient vs companion. */
+function MealsSection({ stats, label }) {
+  const meals = stats?.meals || []
+  const max = Math.max(1, ...meals.map((m) => m.total))
+  return (
+    <section className="card rounded-3xl p-6 space-y-5">
+      <h3 className="text-lg font-bold flex items-center gap-2">
+        <Award size={18} className="text-emerald-500" /> الوجبات الأكثر والأقل طلبًا — {label}
+      </h3>
+      {meals.length === 0 ? (
+        <p className="text-sm muted text-center py-6">لا توجد طلبات في هذه الفترة.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <RankBox title="الأعلى طلبًا" icon={TrendingUp} tone="text-green-600 bg-green-600/10" items={stats.mealsTop} />
+            <RankBox title="الأقل طلبًا" icon={TrendingDown} tone="text-rose-500 bg-rose-500/10" items={stats.mealsBottom} />
+          </div>
+          <div className="space-y-3">
+            <div className="flex gap-4 text-xs muted">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-sky-500" /> مريض</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-indigo-500" /> مرافق</span>
+            </div>
+            {meals.slice(0, 20).map((m, i) => (
+              <div key={m.name}>
+                <div className="flex justify-between gap-2 text-sm mb-1">
+                  <span className="truncate">
+                    <b className="muted ml-1">{i + 1}.</b> {m.name}
+                  </span>
+                  <span className="font-bold whitespace-nowrap" dir="ltr">
+                    {m.total} <span className="muted font-normal">({m.pct}%)</span>
+                  </span>
+                </div>
+                <div className="h-2.5 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden flex" title={`مريض ${m.patient} · مرافق ${m.companion}`}>
+                  <div className="h-full bg-sky-500" style={{ width: `${(m.patient / max) * 100}%` }} />
+                  <div className="h-full bg-indigo-500" style={{ width: `${(m.companion / max) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
+function RankBox({ title, icon: Icon, tone, items = [] }) {
+  return (
+    <div className="card-2 rounded-2xl p-4">
+      <p className="font-bold text-sm mb-3 flex items-center gap-2">
+        <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${tone}`}>
+          <Icon size={15} />
+        </span>
+        {title}
+      </p>
+      {items.length === 0 ? (
+        <p className="text-xs muted">—</p>
+      ) : (
+        <ol className="space-y-1.5">
+          {items.map((m, i) => (
+            <li key={m.name} className="flex justify-between gap-2 text-sm">
+              <span className="truncate">
+                {i + 1}. {m.name}
+              </span>
+              <span className="font-bold whitespace-nowrap" dir="ltr">
+                {m.total} <span className="muted font-normal text-xs">({m.pct}%)</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  )
+}
+
+const AUDIENCES = [
+  { id: 'all', name: 'الكل' },
+  { id: 'role', name: 'حسب الدور' },
+  { id: 'users', name: 'أشخاص محددون' },
+]
+
+/**
+ * Note 11: send a note to everyone, to roles, or to chosen people, and follow who read it.
+ * A note is visible only to its sender and its recipients; only the sender can delete it (for everyone).
+ */
+function NotesPanel() {
   const [message, setMessage] = useState('')
   const [department, setDepartment] = useState('')
+  const [audience, setAudience] = useState('all')
+  const [roles, setRoles] = useState([])
+  const [userIds, setUserIds] = useState([])
+  const [people, setPeople] = useState([])
+  const [sent, setSent] = useState([])
   const [state, setState] = useState('idle')
+  const [error, setError] = useState('')
   const { departments } = useDepartments()
+
+  const loadSent = () =>
+    fetch('/api/notes')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setSent((d.notes || []).filter((n) => n.mine)))
+      .catch(() => {})
+  useEffect(() => {
+    loadSent()
+    fetch('/api/notes?recipients=1')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setPeople(d.users || []))
+      .catch(() => {})
+  }, [])
+  // Read receipts update live (note 10).
+  useLive(loadSent)
+
+  const toggle = (list, setList, v) => setList(list.includes(v) ? list.filter((x) => x !== v) : [...list, v])
 
   const submit = async (e) => {
     e.preventDefault()
+    setError('')
     if (!message.trim()) return
     setState('sending')
     try {
       const r = await fetch('/api/notes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message, department: department || null }),
+        body: JSON.stringify({ message, department: department || null, audience, roles, userIds }),
       })
+      const d = await r.json().catch(() => ({}))
       if (r.ok) {
         setMessage('')
         setDepartment('')
         setState('sent')
+        loadSent()
         setTimeout(() => setState('idle'), 2500)
-      } else setState('idle')
+      } else {
+        setError(d.error || 'تعذّر الإرسال')
+        setState('idle')
+      }
     } catch {
+      setError('خطأ في الاتصال بالشبكة')
       setState('idle')
     }
   }
 
+  const remove = async (id) => {
+    if (!confirm('حذف الملاحظة لدى جميع المستلمين؟')) return
+    const r = await fetch('/api/notes?id=' + encodeURIComponent(id), { method: 'DELETE' }).catch(() => null)
+    if (r?.ok) setSent((list) => list.filter((n) => n.id !== id))
+  }
+
+  const audienceLabel = (n) =>
+    n.audience === 'role' ? n.targetRoles.map(roleName).join('، ') : n.audience === 'users' ? 'أشخاص محددون' : 'الكل'
+
   return (
-    <section className="card rounded-3xl p-6">
-      <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
-        <Send size={18} className="text-emerald-500" /> إرسال ملاحظة للموظفين
-      </h3>
-      <p className="text-xs muted mb-4">تصل الموظفين في أيقونة الإشعارات (اختيارية)</p>
-      <form onSubmit={submit} className="space-y-3">
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          rows={2}
-          placeholder="اكتب ملاحظتك أو تنبيهك هنا..."
-          className="w-full field rounded-xl p-3 resize-none"
-        />
-        <div className="flex gap-3">
-          <select value={department} onChange={(e) => setDepartment(e.target.value)} className="field rounded-xl p-2.5 text-sm flex-1">
-            <option value="">كل الأقسام</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <section className="card rounded-3xl p-6">
+        <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
+          <Send size={18} className="text-emerald-500" /> إرسال ملاحظة
+        </h3>
+        <p className="text-xs muted mb-4">تصل المستلمين فقط في أيقونة الإشعارات، وتعرف من قرأها</p>
+        <form onSubmit={submit} className="space-y-3">
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={2}
+            placeholder="اكتب ملاحظتك أو تنبيهك هنا..."
+            className="w-full field rounded-xl p-3 resize-none"
+          />
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-xl card-2">
+            {AUDIENCES.map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                onClick={() => setAudience(a.id)}
+                className={`py-2 rounded-lg text-xs sm:text-sm font-bold transition-colors ${
+                  audience === a.id ? 'bg-emerald-600 text-white shadow' : 'muted hover:text-emerald-500'
+                }`}
+              >
+                {a.name}
+              </button>
             ))}
-          </select>
-          <button
-            disabled={state === 'sending'}
-            className={`px-5 rounded-xl font-bold text-white transition-colors ${
-              state === 'sent' ? 'bg-emerald-500' : 'bg-emerald-600 hover:bg-emerald-500'
-            }`}
-          >
-            {state === 'sent' ? 'تم الإرسال' : 'إرسال'}
-          </button>
+          </div>
+          {audience === 'role' && (
+            <div className="flex flex-wrap gap-2">
+              {ROLE_LIST.map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => toggle(roles, setRoles, r.id)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-bold border ${
+                    roles.includes(r.id) ? 'bg-emerald-600 border-emerald-600 text-white' : 'card-2'
+                  }`}
+                >
+                  {r.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {audience === 'users' && (
+            <div className="max-h-48 overflow-y-auto card-2 rounded-xl p-2 space-y-1">
+              {people.map((u) => (
+                <label key={u.id} className="flex items-center gap-2 text-sm p-1.5 rounded-lg hover:bg-emerald-500/5 cursor-pointer">
+                  <input type="checkbox" checked={userIds.includes(u.id)} onChange={() => toggle(userIds, setUserIds, u.id)} />
+                  <span>{u.name}</span>
+                  <span className="text-xs muted">· {roleName(u.role)}</span>
+                </label>
+              ))}
+              {people.length === 0 && <p className="text-xs muted p-2">لا يوجد مستخدمون</p>}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <select value={department} onChange={(e) => setDepartment(e.target.value)} className="field rounded-xl p-2.5 text-sm flex-1">
+              <option value="">بدون قسم محدد</option>
+              {departments.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+            <button
+              disabled={state === 'sending'}
+              className={`px-5 rounded-xl font-bold text-white transition-colors ${
+                state === 'sent' ? 'bg-emerald-500' : 'bg-emerald-600 hover:bg-emerald-500'
+              }`}
+            >
+              {state === 'sent' ? 'تم الإرسال' : 'إرسال'}
+            </button>
+          </div>
+          {error && <p className="text-sm text-rose-500">{error}</p>}
+        </form>
+      </section>
+      <section className="card rounded-3xl p-6">
+        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <CheckCheck size={18} className="text-emerald-500" /> ملاحظاتي المرسلة وحالة القراءة
+        </h3>
+        <div className="space-y-3 max-h-[28rem] overflow-y-auto">
+          {sent.map((n) => (
+            <div key={n.id} className="card-2 rounded-2xl p-3">
+              <div className="flex justify-between gap-2">
+                <p className="text-sm font-medium break-words">{n.message}</p>
+                <button onClick={() => remove(n.id)} title="حذف للجميع" className="muted hover:text-rose-500 shrink-0">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+              <p className="text-[11px] muted mt-1">
+                إلى: {audienceLabel(n)} · {timeAgo(n.createdAt)}
+              </p>
+              {n.receipts && (
+                <details className="mt-2 text-xs">
+                  <summary className="cursor-pointer font-bold text-emerald-500">
+                    قرأها {n.receipts.read} من {n.receipts.total}
+                  </summary>
+                  <div className="mt-1 space-y-0.5">
+                    {n.receipts.readers.map((r) => (
+                      <p key={r.name + r.readAt}>✓ {r.name} <span className="muted">· {timeAgo(r.readAt)}</span></p>
+                    ))}
+                    {n.receipts.pending.map((name) => (
+                      <p key={name} className="muted">○ {name} (لم تُقرأ)</p>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          ))}
+          {sent.length === 0 && <p className="text-sm muted text-center py-6">لم ترسل أي ملاحظة بعد.</p>}
         </div>
-      </form>
-    </section>
+      </section>
+    </div>
   )
 }
 

@@ -1,3 +1,13 @@
+/* Cairo, served locally (no Google Fonts request; works offline and inside print/PDF). */
+@font-face{font-family:'Cairo';font-weight:400;font-display:swap;src:url(/fonts/cairo-arabic-400-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Cairo';font-weight:400;font-display:swap;src:url(/fonts/cairo-latin-400-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2212}
+@font-face{font-family:'Cairo';font-weight:600;font-display:swap;src:url(/fonts/cairo-arabic-600-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Cairo';font-weight:600;font-display:swap;src:url(/fonts/cairo-latin-600-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2212}
+@font-face{font-family:'Cairo';font-weight:700;font-display:swap;src:url(/fonts/cairo-arabic-700-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Cairo';font-weight:700;font-display:swap;src:url(/fonts/cairo-latin-700-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2212}
+@font-face{font-family:'Cairo';font-weight:800;font-display:swap;src:url(/fonts/cairo-arabic-800-normal.woff2) format('woff2');unicode-range:U+0600-06FF,U+0750-077F,U+0870-08FF,U+200C-200E,U+2010-2011,U+204F,U+2E41,U+FB50-FDFF,U+FE70-FEFC}
+@font-face{font-family:'Cairo';font-weight:800;font-display:swap;src:url(/fonts/cairo-latin-800-normal.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC,U+2122,U+2212}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -52,7 +62,8 @@
   }
   .field:focus {
     outline: none;
-    border-color: #10b981;
+    border-color: #0284c7;
+    box-shadow: 0 0 0 3px rgb(2 132 199 / 0.18);
   }
 }
 
@@ -103,4 +114,24 @@ select option {
 .dark input[type='date']::-webkit-calendar-picker-indicator {
   filter: invert(0.7);
   cursor: pointer;
+}
+
+/* Printing any page (Ctrl+P / share → print) always comes out white, also from dark mode, without the app chrome.
+   Cards and reports print through the same-page print view (lib/printView.js), which hides the app entirely. */
+@media print {
+  :root,
+  .dark {
+    color-scheme: light;
+    --bg: 255 255 255;
+    --surface: 255 255 255;
+    --surface-2: 248 250 252;
+    --border: 226 232 240;
+    --text: 15 23 42;
+    --muted: 71 85 105;
+    --input: 255 255 255;
+  }
+  #__next > div > header,
+  #__next > div > nav {
+    display: none !important;
+  }
 }

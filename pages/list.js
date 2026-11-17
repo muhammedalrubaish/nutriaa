@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
-import { Download, Filter, ListChecks, Printer, Trash2, Users } from 'lucide-react'
+import { Download, FileText, Filter, ListChecks, Printer, Trash2, Users } from 'lucide-react'
 import Nav from '@/components/Nav'
 import Spinner from '@/components/Spinner'
 import { useAuth } from '@/lib/useAuth'
@@ -9,7 +9,9 @@ import { useDepartments } from '@/lib/useDepartments'
 import { can, PERMS } from '@/lib/roles'
 import { DAY_BY_ID, MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
 import { fmtDate, nameLabels, timeAgo } from '@/lib/format'
-import { exportOrdersXlsx, printOrderCards } from '@/lib/export'
+import { exportOrdersXlsx, openReport, printOrderCards } from '@/lib/export'
+import { riyadhDate } from '@/lib/time'
+import { useLive } from '@/lib/useLive'
 
 export default function List() {
   const { user, loading } = useAuth({ requirePerm: PERMS.VIEW_REPORTS })
@@ -21,6 +23,7 @@ export default function List() {
   const [userFilter, setUserFilter] = useState('')
   const [staff, setStaff] = useState([])
   const [busy, setBusy] = useState(false)
+  const [reporting, setReporting] = useState(false)
 
   useEffect(() => {
     if (!router.isReady) return
@@ -51,6 +54,8 @@ export default function List() {
   useEffect(() => {
     if (user) load()
   }, [user, load])
+  // Note 10: new or deleted orders appear without reloading the page.
+  useLive(load, !!user)
 
   if (loading || !user) return <Spinner />
 
@@ -60,6 +65,36 @@ export default function List() {
 
   const canDelete = can(user.role, PERMS.DELETE_ORDERS)
   const canExport = can(user.role, PERMS.EXPORT_REPORTS)
+
+  // Note 4: a PDF report of exactly the orders this log shows (same filters).
+  const logReport = async () => {
+    setReporting(true)
+    try {
+      const days = orders.map((o) => riyadhDate(new Date(o.createdAt))).sort()
+      const from = date || days[0] || riyadhDate()
+      const to = date || days[days.length - 1] || from
+      const menu = await fetch('/api/menu').then((r) => r.json()).then((d) => d.menu).catch(() => null)
+      await openReport({
+        kind: 'log',
+        title: 'تقرير سجل الطلبات',
+        periodLabel: from === to ? from : `${from} → ${to}`,
+        filtersLabel: [
+          department ? `القسم: ${byId[department]?.name || department}` : '',
+          userFilter ? `المستخدم: ${userName}` : '',
+        ].filter(Boolean).join(' · '),
+        orders,
+        from,
+        to,
+        departments,
+        deptById: byId,
+        users: staff,
+        menu,
+        generatedBy: user.name,
+      })
+    } finally {
+      setReporting(false)
+    }
+  }
 
   const remove = async (id) => {
     if (!confirm('حذف هذا الطلب؟')) return
@@ -72,7 +107,7 @@ export default function List() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>سجل الطلبات | قسم خدمات التغذية</title>
+        <title>سجل الطلبات | قسم خدمات التغذية - نيوتريا</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
@@ -95,6 +130,13 @@ export default function List() {
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:opacity-50"
               >
                 <Printer size={18} /> طباعة بطاقات ({orders.length})
+              </button>
+              <button
+                onClick={logReport}
+                disabled={orders.length === 0 || reporting}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-navy hover:bg-navy-700 dark:bg-sky-800 text-white transition-colors disabled:opacity-50"
+              >
+                <FileText size={18} /> {reporting ? 'جارٍ التجهيز...' : 'تقرير PDF'}
               </button>
               <button
                 onClick={() => exportOrdersXlsx(orders, byId, ['تقرير-الطلبات', userName].filter(Boolean).join('-'))}
@@ -177,7 +219,7 @@ export default function List() {
                     <Td>
                       <span
                         className={`px-2 py-0.5 rounded-full text-xs ${
-                          o.personType === 'patient' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-sky-500/15 text-sky-500'
+                          o.personType === 'patient' ? 'bg-sky-500/15 text-sky-500' : 'bg-indigo-500/15 text-indigo-400'
                         }`}
                       >
                         {personTypeName(o.personType)}
@@ -185,7 +227,11 @@ export default function List() {
                     </Td>
                     <Td className="muted">{o.day ? DAY_BY_ID[o.day]?.name || o.day : '—'}</Td>
                     <Td>{MEAL_TIME_BY_ID[o.mealTime]?.name || o.mealTime}</Td>
-                    <Td>{o.mainMeal}</Td>
+                    <Td>
+                      <span className={o.mealType === 'main' ? 'text-green-600 dark:text-green-400' : o.mealType === 'optional' ? 'text-sky-500' : 'text-violet-400'}>
+                        {o.mainMeal}
+                      </span>
+                    </Td>
                     <Td className="muted text-xs max-w-[160px]">{o.options?.length ? o.options.join('، ') : '—'}</Td>
                     <Td className="muted">{o.createdByName || o.createdBy}</Td>
                     <Td className="muted text-xs whitespace-nowrap">{fmtDate(o.createdAt)}</Td>
