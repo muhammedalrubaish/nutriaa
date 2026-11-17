@@ -102,7 +102,7 @@ export default function Departments() {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-8 space-y-6">
         <PageHeader icon={Building2} title="إدارة الأقسام" subtitle="إضافة الأقسام وتحديد ألوانها وأرقام غرفها (متاح للمشرف)" />
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <form onSubmit={add} className="card rounded-3xl p-6 space-y-4 h-fit">
