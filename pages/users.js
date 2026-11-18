@@ -6,6 +6,7 @@ import Spinner from '@/components/Spinner'
 import { Alert, Modal, ModalButtons, PageHeader, TextField } from '@/components/forms'
 import { useAuth } from '@/lib/useAuth'
 import { PERMS, assignableRoles, canManageUser, rankOf, roleName } from '@/lib/roles'
+import { APP_TITLE } from '@/lib/constants'
 
 const ROLE_ICONS = { sysadmin: Crown, manager: Star, supervisor: ShieldCheck, distributor: ClipboardEdit, specialist: Download }
 const ROLE_COLORS = {
@@ -87,7 +88,7 @@ export default function Users() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>إدارة الموظفين | قسم خدمات التغذية - نيوتريا</title>
+        <title>إدارة الموظفين | {APP_TITLE}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />

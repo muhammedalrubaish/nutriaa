@@ -11,7 +11,7 @@ import Spinner from '@/components/Spinner'
 import { useAuth } from '@/lib/useAuth'
 import { useDepartments } from '@/lib/useDepartments'
 import { ROLE_LIST, can, PERMS, roleName } from '@/lib/roles'
-import { MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
+import { APP_TITLE, MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
 import { colorClasses } from '@/lib/departments'
 import { fmtDate, nameLabels, timeAgo } from '@/lib/format'
 import { exportReportXlsx, openReport } from '@/lib/export'
@@ -112,7 +112,7 @@ export default function Dashboard() {
     ])
     return {
       kind: 'period',
-      title: 'تقرير لوحة المؤشرات',
+      title: 'تقرير الوجبات الاختيارية',
       periodLabel: range.from === range.to ? range.from : `${range.from} إلى ${range.to}`,
       filtersLabel: userFilter ? `المستخدم: ${userName}` : '',
       orders: o.orders || [],
@@ -142,7 +142,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>لوحة المؤشرات | قسم خدمات التغذية - نيوتريا</title>
+        <title>تقرير الوجبات الاختيارية | {APP_TITLE}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />

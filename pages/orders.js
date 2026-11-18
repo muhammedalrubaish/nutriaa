@@ -7,7 +7,7 @@ import BedMap from '@/components/BedMap'
 import { useAuth } from '@/lib/useAuth'
 import { useDepartments } from '@/lib/useDepartments'
 import { PERMS } from '@/lib/roles'
-import { MEAL_TIMES, WEEK_DAYS } from '@/lib/constants'
+import { APP_TITLE, MEAL_TIMES, WEEK_DAYS } from '@/lib/constants'
 import { useLive } from '@/lib/useLive'
 
 const OPTIONAL_SLOTS = [
@@ -150,7 +150,7 @@ export default function Orders() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>إدخال طلب | قسم خدمات التغذية - نيوتريا</title>
+        <title>إدخال طلب | {APP_TITLE}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />

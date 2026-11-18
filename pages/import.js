@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/forms'
 import { useAuth } from '@/lib/useAuth'
 import { useDepartments } from '@/lib/useDepartments'
 import { PERMS } from '@/lib/roles'
-import { DAY_BY_ID, MEAL_TIMES, PERSON_TYPES, WEEK_DAYS } from '@/lib/constants'
+import { APP_TITLE, DAY_BY_ID, MEAL_TIMES, PERSON_TYPES, WEEK_DAYS } from '@/lib/constants'
 import { parseImport, parseRows } from '@/lib/importParser'
 import { downloadXlsx, readXlsxRows } from '@/lib/xlsx'
 
@@ -119,7 +119,7 @@ export default function Import() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>استيراد بيانات Excel | قسم خدمات التغذية - نيوتريا</title>
+        <title>استيراد بيانات Excel | {APP_TITLE}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
