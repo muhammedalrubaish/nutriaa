@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import '@/styles/globals.css'
 import Footer from '@/components/Footer'
 import { useAppUpdate } from '@/lib/useAppUpdate'
+import PullToRefresh from '@/components/PullToRefresh'
 
 export default function App({ Component, pageProps }) {
   useEffect(() => {
@@ -19,6 +20,7 @@ export default function App({ Component, pageProps }) {
           يوجد تحديث جديد، سيتم التحديث تلقائيًا
         </div>
       )}
+      <PullToRefresh />
       <Component {...pageProps} />
       <Footer />
     </>

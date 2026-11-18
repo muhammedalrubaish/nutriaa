@@ -103,6 +103,8 @@ body {
 }
 body {
   background-color: rgb(var(--bg));
+  /* Pull-to-refresh (components/PullToRefresh.js) replaces the rubber-band at the top. */
+  overscroll-behavior-y: contain;
 }
 body,
 select option {
