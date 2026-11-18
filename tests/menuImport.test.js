@@ -123,10 +123,10 @@ import { clip } from '@/lib/report/common'
 
 describe('QA round 1: download file names', () => {
   it('drops arrows, bidi marks and reserved characters, keeps Arabic and the extension', () => {
-    expect(safeFileName('تقرير لوحة المؤشرات-2026-11-01 → 2026-11-17.xlsx')).toBe('تقرير_لوحة_المؤشرات-2026-11-01_2026-11-17.xlsx')
+    expect(safeFileName('تقرير الوجبات الاختيارية-2026-11-01 → 2026-11-17.xlsx')).toBe('تقرير_الوجبات_الاختيارية-2026-11-01_2026-11-17.xlsx')
     expect(safeFileName('a/b:c*?\u200f.pdf')).toBe('a_b_c.pdf')
     expect(safeFileName('تقرير سجل الطلبات - 2026-11-01 إلى 2026-11-17.pdf')).toBe('تقرير_سجل_الطلبات-2026-11-01_إلى_2026-11-17.pdf')
-    expect(safeFileName('→')).toBe('nutriaa')
+    expect(safeFileName('→')).toBe('ملف')
   })
 })
 

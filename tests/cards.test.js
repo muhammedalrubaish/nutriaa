@@ -1,7 +1,7 @@
 // Notes 1, 2, 14: printed meal cards — cards8 layout, 8 per A4 page, PATIENT / MORAFEQ, no author or date.
 import { describe, it, expect } from 'vitest'
 import { CARDS_CSS, CARDS_PER_PAGE, MIN_CARD_SCALE, cardHtml, cardPages, cardScale, fitCards } from '@/lib/report/cards'
-import { SHEET_CSS } from '@/lib/report/doc'
+import { PRINT_SHEET, SHEET_CSS } from '@/lib/report/doc'
 
 const DEPTS = {
   ob1: { id: 'ob1', name: 'قسم الولادة ١', sortOrder: 1 },
@@ -29,9 +29,12 @@ describe('meal cards', () => {
   it('lays the page out as 2 columns × 4 rows of landscape cards that never split', () => {
     expect(CARDS_CSS).toMatch(/\.mcards\{[^}]*grid-template-columns:1fr 1fr[^}]*grid-template-rows:repeat\(4,1fr\)/)
     expect(CARDS_CSS).toMatch(/\.mcard\{[^}]*break-inside:avoid/)
-    // A4 sheet that fits the printable area (194×276mm inside 8mm margins) and breaks after each page.
-    expect(SHEET_CSS).toMatch(/\.doc\.print \.a4\{width:194mm;height:276mm\}/)
+    // A4 sheet short enough for iPhone Safari (194×250mm) so the footer stays on the same sheet.
+    expect(PRINT_SHEET).toEqual({ width: '194mm', height: '250mm', footerReserve: '10mm' })
+    expect(SHEET_CSS).toMatch(/\.doc\.print \.a4\{width:194mm;height:250mm;max-height:250mm\}/)
     expect(SHEET_CSS).toMatch(/break-after:page/)
+    expect(SHEET_CSS).toMatch(/\.doc\.print \.a4\.has-footer\{padding-bottom:10mm\}/)
+    expect(SHEET_CSS).toMatch(/\.doc \.a4 \.rf\{position:absolute;left:0;right:0;bottom:0/)
   })
 
   it('prints PATIENT / MORAFEQ', () => {

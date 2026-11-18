@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { LogIn } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { homeFor } from '@/lib/roles'
+import { APP_SUBTITLE, APP_TITLE } from '@/lib/constants'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -36,7 +37,7 @@ export default function Login() {
   return (
     <div className="min-h-screen app-bg flex items-center justify-center p-6" dir="rtl">
       <Head>
-        <title>تسجيل الدخول | قسم خدمات التغذية - نيوتريا</title>
+        <title>تسجيل الدخول | {APP_TITLE}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <div className="absolute top-4 left-4">
@@ -49,8 +50,8 @@ export default function Login() {
             alt="تجمع القصيم الصحي"
             className="w-24 h-24 rounded-2xl object-cover shadow-xl shadow-black/30 mb-4"
           />
-          <h1 className="text-2xl font-bold">قسم خدمات التغذية - نيوتريا</h1>
-          <p className="text-sm muted mt-1">مستشفى الولادة والأطفال ببريدة</p>
+          <h1 className="text-2xl font-bold">{APP_TITLE}</h1>
+          <p className="text-sm muted mt-1">{APP_SUBTITLE}</p>
         </div>
         <form onSubmit={submit} className="card rounded-3xl p-7 space-y-5 backdrop-blur-xl">
           <div className="space-y-2">

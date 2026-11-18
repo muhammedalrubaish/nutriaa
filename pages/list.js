@@ -7,7 +7,7 @@ import Spinner from '@/components/Spinner'
 import { useAuth } from '@/lib/useAuth'
 import { useDepartments } from '@/lib/useDepartments'
 import { can, PERMS } from '@/lib/roles'
-import { DAY_BY_ID, MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
+import { APP_TITLE, DAY_BY_ID, MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
 import { fmtDate, nameLabels, timeAgo } from '@/lib/format'
 import { exportOrdersXlsx, openReport, printOrderCards } from '@/lib/export'
 import { riyadhDate } from '@/lib/time'
@@ -109,7 +109,7 @@ export default function List() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>سجل الطلبات | قسم خدمات التغذية - نيوتريا</title>
+        <title>سجل الطلبات | {APP_TITLE}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />

@@ -4,7 +4,7 @@ import { ArrowRight, Info } from 'lucide-react'
 import ThemeToggle from '@/components/ThemeToggle'
 import { APP_SUBTITLE, APP_TITLE, COPYRIGHT } from '@/lib/constants'
 
-// «عن النظام»: what Nutriaa is, the intellectual-property note and the fixed copyright line.
+// «عن النظام»: what the system is, the intellectual-property note and the fixed copyright line.
 // Public (no sign-in needed) so it can be linked from the login page and every footer.
 export default function About() {
   return (
@@ -35,7 +35,7 @@ export default function About() {
             </div>
             <div>
               <h2 className="text-2xl font-bold">عن النظام</h2>
-              <p className="text-sm muted">نيوتريا — نظام إدارة طلبات وجبات المرضى والمرافقين</p>
+              <p className="text-sm muted">نظام إدارة طلبات وجبات المرضى والمرافقين</p>
             </div>
           </div>
           <Link href="/" className="card-2 rounded-xl px-4 py-2 text-sm font-bold flex items-center gap-1.5">
@@ -43,16 +43,16 @@ export default function About() {
           </Link>
         </div>
         <section className="card rounded-3xl p-5 space-y-2 leading-7">
-          <h3 className="font-bold text-lg">ما هو نيوتريا؟</h3>
+          <h3 className="font-bold text-lg">ما هو النظام؟</h3>
           <p>
-            نيوتريا نظام يساعد قسم خدمات التغذية على إدخال طلبات وجبات المرضى والمرافقين، وطباعة بطاقات الوجبات، ومتابعة
+            النظام يساعد قسم خدمات التغذية على إدخال طلبات وجبات المرضى والمرافقين، وطباعة بطاقات الوجبات، ومتابعة
             المؤشرات والتقارير وقائمة الوجبات الأسبوعية، مع تحديث لحظي وإشعارات للفريق.
           </p>
         </section>
         <section className="card rounded-3xl p-5 space-y-2 leading-7">
           <h3 className="font-bold text-lg">الملكية الفكرية</h3>
           <p>
-            نيوتريا — فكرةً وتصميماً وبرمجةً وهويةً — عمل فكري أصيل من تصميم وتطوير <b>عبدالله الربيش، أخصائي تغذية</b>،
+            النظام — فكرةً وتصميماً وبرمجةً وهويةً — عمل فكري أصيل من تصميم وتطوير <b>عبدالله الربيش، أخصائي تغذية</b>،
             وجميع حقوق الملكية الفكرية فيه محفوظة له.
           </p>
           <p>

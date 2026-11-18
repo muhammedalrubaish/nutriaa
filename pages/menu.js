@@ -5,7 +5,7 @@ import Nav from '@/components/Nav'
 import Spinner from '@/components/Spinner'
 import { useAuth } from '@/lib/useAuth'
 import { can, PERMS } from '@/lib/roles'
-import { MAIN_MEALS, OPTIONAL_ITEMS, WEEK_DAYS } from '@/lib/constants'
+import { APP_TITLE, MAIN_MEALS, OPTIONAL_ITEMS, WEEK_DAYS } from '@/lib/constants'
 import { MENU_TEMPLATE_HEADER, optionalsWithoutMain, parseMenuSheet } from '@/lib/menuImport'
 import { downloadXlsx, readXlsxRows } from '@/lib/xlsx'
 import { useLive } from '@/lib/useLive'
@@ -128,7 +128,7 @@ export default function Menu() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>القائمة الأسبوعية | قسم خدمات التغذية - نيوتريا</title>
+        <title>القائمة الأسبوعية | {APP_TITLE}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />

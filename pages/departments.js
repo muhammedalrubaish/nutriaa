@@ -8,6 +8,7 @@ import { Alert, Modal, ModalButtons, PageHeader, TextField } from '@/components/
 import { useAuth } from '@/lib/useAuth'
 import { invalidateDepartments } from '@/lib/useDepartments'
 import { PERMS } from '@/lib/roles'
+import { APP_TITLE } from '@/lib/constants'
 import { COLOR_NAMES, DEPT_COLORS, colorClasses, roomsSummary } from '@/lib/departments'
 
 const EMPTY = { name: '', color: 'emerald', roomFrom: '', roomTo: '', extraRooms: '' }
@@ -98,7 +99,7 @@ export default function Departments() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>إدارة الأقسام | قسم خدمات التغذية - نيوتريا</title>
+        <title>إدارة الأقسام | {APP_TITLE}</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />

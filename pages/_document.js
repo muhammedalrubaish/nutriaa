@@ -13,9 +13,9 @@ export default function Document() {
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="نيوتريا" />
+        <meta name="apple-mobile-web-app-title" content="قسم التغذية" />
         <meta name="theme-color" content="#081c44" />
-        <meta name="application-name" content="قسم خدمات التغذية - نيوتريا" />
+        <meta name="application-name" content="قسم خدمات التغذية" />
         <link rel="preload" href="/fonts/cairo-arabic-700-normal.woff2" as="font" type="font/woff2" crossOrigin="" />
       </Head>
       <body>
