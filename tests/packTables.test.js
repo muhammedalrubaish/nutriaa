@@ -8,7 +8,7 @@ const flat = pages => pages.map(p => p.map(s => [s.table.key, s.start, s.rows.le
 describe('packTables', () => {
   it('fills a sheet by height and continues numbering (0-based start)', () => {
     const pages = packTables([t('a', 25)], { page: 100, card: 20, gap: 3 })
-    expect(flat(pages)).toEqual([[['a', 0, 8]], [['a', 8, 8]], [['a', 16, 5]], [['a', 21, 4]]])
+    expect(flat(pages)).toEqual([[['a', 0, 8]], [['a', 8, 8]], [['a', 16, 8]], [['a', 24, 1]]])
   })
   it('starts the next table on the same sheet when enough rows fit', () => {
     const pages = packTables([t('a', 3), t('b', 20)], { page: 120, card: 20, gap: 3 })
@@ -29,10 +29,14 @@ describe('packTables', () => {
       expect(used).toBeLessThanOrEqual(201)
     }
   })
-  it('balances a near-empty final sheet', () => {
-    const pages = packTables([t('a', 18)], { page: 100, card: 20, gap: 3 })
-    const last = pages.at(-1)[0], prev = pages.at(-2).at(-1)
-    expect(last.rows.length).toBeGreaterThanOrEqual(prev.rows.length - 1)
+  it('starts the next table under the previous one as soon as one row fits', () => {
+    const pages = packTables([t('a', 4), t('b', 10)], { page: 100, card: 20, gap: 3 })
+    expect(flat(pages)[0]).toEqual([['a', 0, 4], ['b', 0, 1]])
+    expect(flat(pages)[1]).toEqual([['b', 1, 8]])
+  })
+  it('reserves the copyright note only on the last sheet', () => {
+    expect(flat(packTables([t('a', 16)], { page: 100, card: 20, gap: 3, tail: 6 }))).toEqual([[['a', 0, 8]], [['a', 8, 7]], [['a', 15, 1]]])
+    expect(flat(packTables([t('a', 15)], { page: 100, card: 20, gap: 3, tail: 6 }))).toEqual([[['a', 0, 8]], [['a', 8, 7]]])
   })
 })
 
