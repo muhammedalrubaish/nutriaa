@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { APP_TITLE, COPYRIGHT, IP_NOTE } from '@/lib/constants'
-import { reportPages, REPORT_CSS } from '@/lib/report/report'
+import { issuedHtml, metaRows, reportPages, REPORT_CSS } from '@/lib/report/report'
 import { SHEET_CSS } from '@/lib/report/doc'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -45,6 +45,25 @@ describe('user-visible branding', () => {
     expect(pages.join('')).not.toMatch(BRAND)
     expect(pages.at(-1)).toContain('النظام مملوك فكرياً')
     expect(REPORT_CSS + SHEET_CSS).not.toMatch(BRAND)
+    // Small, centred footer: © line then «صفحة X من Y».
+    expect(pages[0]).toMatch(/<div class="rf"><span>© 2026[^<]*<\/span><span class="pg"[^>]*>صفحة 1 من \d+<\/span><\/div>/)
+    expect(REPORT_CSS).toMatch(/\.rf\{[^}]*flex-direction:column[^}]*align-items:center[^}]*text-align:center/)
+  })
+
+  it('lays the header meta out as aligned label/value rows with LTR-isolated dates', () => {
+    const rows = metaRows({
+      periodLabel: '2026-11-18 إلى 2026-11-20',
+      filtersLabel: 'القسم: قسم الولادة 1 · المستخدم: سامي',
+      generatedAt: new Date('2026-11-18T23:04:00+03:00'),
+      generatedBy: 'عبدالله الربيش',
+    })
+    const keys = [...rows.matchAll(/<span class="k">([^<]*)<\/span>/g)].map((m) => m[1])
+    expect(keys).toEqual(['الفترة:', 'القسم:', 'المستخدم:', 'تاريخ الإصدار:', 'بواسطة:'])
+    expect(rows).toContain('<span dir="ltr" style="unicode-bidi:isolate">18-11-2026</span> إلى <span dir="ltr" style="unicode-bidi:isolate">20-11-2026</span>')
+    expect(issuedHtml(new Date('2026-11-18T23:04:00+03:00'))).toBe('<span dir="ltr" style="unicode-bidi:isolate">18-11-2026</span>، <span dir="ltr" style="unicode-bidi:isolate">11:04</span> م')
+    expect(issuedHtml(new Date('2026-11-18T00:30:00+03:00'))).toMatch(/>12:30<\/span> ص$/)
+    expect(rows).not.toMatch(/<b>|<br>/)
+    expect(REPORT_CSS).toMatch(/\.rh \.meta\{[^}]*display:grid;grid-template-columns:auto auto/)
   })
 
   it('has no نيوتريا in user-facing source (pages, components, public, lib constants/reports)', () => {
