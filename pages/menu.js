@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Head from 'next/head'
-import { AlertTriangle, CalendarDays, Coffee, Download, FileSpreadsheet, Save, Search, Upload, Utensils, X } from 'lucide-react'
+import { AlertTriangle, CalendarDays, Coffee, Download, FileSpreadsheet, Library, Save, Search, Upload, Utensils, X } from 'lucide-react'
 import Nav from '@/components/Nav'
 import Spinner from '@/components/Spinner'
+import MealLibraryManager from '@/components/MealLibraryManager'
 import { useAuth } from '@/lib/useAuth'
 import { can, PERMS } from '@/lib/roles'
-import { APP_TITLE, MAIN_MEALS, OPTIONAL_ITEMS, WEEK_DAYS } from '@/lib/constants'
+import { APP_TITLE, WEEK_DAYS } from '@/lib/constants'
+import { mealPickerNames } from '@/lib/mealLibrary'
 import { MENU_TEMPLATE_HEADER, optionalsWithoutMain, parseMenuSheet } from '@/lib/menuImport'
 import { downloadXlsx, readXlsxRows } from '@/lib/xlsx'
 import { useLive } from '@/lib/useLive'
@@ -21,6 +23,8 @@ export default function Menu() {
   const [menu, setMenu] = useState(null)
   const [saved, setSaved] = useState(null) // the menu as last loaded/saved (for the «day loses its main meal» check)
   const [library, setLibrary] = useState([])
+  const [hiddenMeals, setHiddenMeals] = useState([])
+  const [manageOpen, setManageOpen] = useState(false)
   const [status, setStatus] = useState('idle')
   const [error, setError] = useState('')
   const [preview, setPreview] = useState(null) // note 9: { draft, errors, days, fileName }
@@ -39,7 +43,11 @@ export default function Menu() {
   const loadLibrary = () =>
     fetch('/api/meals')
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setLibrary(d.meals || []))
+      .then((d) => {
+        if (!d) return
+        setLibrary(d.meals || [])
+        setHiddenMeals(d.hidden || [])
+      })
       .catch(() => {})
 
   useEffect(() => {
@@ -50,16 +58,8 @@ export default function Menu() {
   // Someone else's menu edit shows up live, unless this user has unsaved edits on screen (note 10).
   useLive(() => !dirty && loadMenu(), !!user)
 
-  // Note 8: the library plus the old fixed lists, de-duplicated, for the searchable pickers.
-  const names = useMemo(() => {
-    const pick = (cat, extra) => {
-      const set = new Map()
-      for (const n of [...library.filter((m) => m.category === cat || m.category === 'any').map((m) => m.name), ...extra])
-        if (n && !set.has(n.trim().toLowerCase())) set.set(n.trim().toLowerCase(), n.trim())
-      return [...set.values()].sort((a, b) => a.localeCompare(b, 'ar'))
-    }
-    return { main: pick('main', MAIN_MEALS), optional: pick('optional', OPTIONAL_ITEMS) }
-  }, [library])
+  // Active library names, plus fixed-list names the library has never stored (hidden ones stay out).
+  const names = useMemo(() => mealPickerNames(library, hiddenMeals), [library, hiddenMeals])
 
   if (loading || !user || !menu) return <Spinner />
 
@@ -145,6 +145,9 @@ export default function Menu() {
           </div>
           {editable && (
             <div className="flex gap-2 flex-wrap">
+              <button onClick={() => setManageOpen(true)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold card-2 hover:border-emerald-500/40">
+                <Library size={18} /> إدارة الوجبات
+              </button>
               <button onClick={downloadTemplate} className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold card-2 hover:border-emerald-500/40">
                 <Download size={18} /> نموذج Excel
               </button>
@@ -224,6 +227,13 @@ export default function Menu() {
           })}
         </div>
       </main>
+      {manageOpen && (
+        <MealLibraryManager
+          meals={library}
+          onChange={loadLibrary}
+          onClose={() => setManageOpen(false)}
+        />
+      )}
     </div>
   )
 }

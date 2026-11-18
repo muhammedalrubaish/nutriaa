@@ -10,8 +10,13 @@ export default route({
   GET: {
     perm: PERMS.CREATE_ORDERS,
     handle: async (req, res) => {
-      const rows = await query(`select id, name, category from meal_library where active order by name`)
-      return res.status(200).json({ meals: rows })
+      // Active rows feed the pickers and the manager; hidden names keep deleted
+      // fixed-list items from reappearing when the client merges old constants.
+      const rows = await query(`select id, name, category, active from meal_library order by name`)
+      return res.status(200).json({
+        meals: rows.filter((r) => r.active),
+        hidden: rows.filter((r) => !r.active).map((r) => r.name),
+      })
     },
   },
   POST: {
