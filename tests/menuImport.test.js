@@ -158,3 +158,28 @@ describe('QA round 1: mixed Arabic/Latin text in the PDF', () => {
     expect(bidiHtml('غرفة 120-B')).toBe('غرفة <span dir="ltr" style="unicode-bidi:isolate">120-B</span>')
   })
 })
+
+describe('Abdullah 2026-11-18: import preview flags the same bed and meal under another name', () => {
+  const DEPTS = [{ id: 'ob1', name: 'قسم الولادة ١', roomFrom: 126, roomTo: 148, extraRooms: [], rooms: [], active: true }]
+  const line = (name, extra = {}) => {
+    const c = { bed: '1', person: 'مريض', day: 'الأحد', meal: 'غداء', ...extra }
+    return [name, 'ob1', '130', c.bed, c.person, c.day, c.meal, 'كبسة']
+  }
+  it('marks the later row invalid, naming the first row and its name', () => {
+    const rows = parseRows([row(1, ['h']), row(2, line('نورة')), row(3, line('سارة')), row(4, line('سارة', { bed: 'B' }))], DEPTS)
+    expect(rows.map((r) => r.valid)).toEqual([true, false, true])
+    expect(rows[1].errors).toEqual(['مكرر: نفس الغرفة والسرير والوجبة في الصف 2 (باسم نورة)'])
+  })
+  it('keeps the companion, another meal time and another day valid; bed 1 and A are the same bed', () => {
+    const rows = parseRows(
+      [row(1, ['h']), row(2, line('نورة')), row(3, line('سارة', { person: 'مرافق' })), row(4, line('سارة', { meal: 'عشاء' })),
+        row(5, line('سارة', { day: 'الاثنين' })), row(6, line('ريم', { bed: 'A' }))],
+      DEPTS,
+    )
+    expect(rows.map((r) => r.valid)).toEqual([true, true, true, true, false])
+  })
+  it('an invalid first row does not make the next one a duplicate', () => {
+    const rows = parseRows([row(1, ['h']), row(2, [...line('نورة').slice(0, 7), '']), row(3, line('سارة'))], DEPTS)
+    expect(rows.map((r) => r.valid)).toEqual([false, true])
+  })
+})

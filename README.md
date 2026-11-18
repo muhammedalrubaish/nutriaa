@@ -68,6 +68,7 @@ All idempotent (safe to re-run) and applied by `npm run db:migrate`:
 - `005_orders_unique_meal_slot.sql` — `orders.meal_date` (generated: the nearest date on/after the Riyadh entry date whose weekday is `day`) and the unique slot `(department, room, bed, meal_date, meal_time, person_type, patient_name)`. It stops with a clear message if existing rows already hold duplicates.
 - `006_menu_optionals_meal_library.sql` — `menu.optional_item_2/_3` and the `meal_library` table (seeded from the menu and past orders).
 - `007_note_recipients.sql` — `notes.audience/target_roles`, `note_recipients`, `note_reads`.
+- `008_orders_unique_slot_no_name.sql` (2026-11-18) — the unique slot drops the name: `(department, room, bed, meal_date, meal_time, person_type)`, so the same bed and meal under another name is a duplicate. The app enforces the same rule before saving (works on either index). Production: `deploy/2026-11-dup-no-name.sql`; conflicts listed read-only by `deploy/2026-11-dup-no-name-conflicts.sql`.
 
 Launching on the existing production database: see `deploy/DEPLOY-PLAN.md` (Arabic) — run `deploy/2026-11-launch-old-db.sql` (005–007 in one idempotent transaction, recorded in `schema_migrations`) **before** merging; `deploy/rollback-2026-11-launch-old-db.sql` undoes it.
 
