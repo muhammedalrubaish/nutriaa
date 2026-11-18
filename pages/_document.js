@@ -13,13 +13,10 @@ export default function Document() {
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="خدمات التغذية" />
+        <meta name="apple-mobile-web-app-title" content="نيوتريا" />
         <meta name="theme-color" content="#081c44" />
-        <meta name="application-name" content="قسم خدمات التغذية" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet" />
+        <meta name="application-name" content="قسم خدمات التغذية - نيوتريا" />
+        <link rel="preload" href="/fonts/cairo-arabic-700-normal.woff2" as="font" type="font/woff2" crossOrigin="" />
       </Head>
       <body>
         <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
-import { Download, Filter, ListChecks, Printer, Trash2, Users } from 'lucide-react'
+import { Download, FileText, Filter, ListChecks, Printer, Trash2, Users } from 'lucide-react'
 import Nav from '@/components/Nav'
 import Spinner from '@/components/Spinner'
 import { useAuth } from '@/lib/useAuth'
@@ -9,7 +9,9 @@ import { useDepartments } from '@/lib/useDepartments'
 import { can, PERMS } from '@/lib/roles'
 import { DAY_BY_ID, MEAL_TIME_BY_ID, bedLabel, personTypeName } from '@/lib/constants'
 import { fmtDate, nameLabels, timeAgo } from '@/lib/format'
-import { exportOrdersXlsx, printOrderCards } from '@/lib/export'
+import { exportOrdersXlsx, openReport, printOrderCards } from '@/lib/export'
+import { riyadhDate } from '@/lib/time'
+import { useLive } from '@/lib/useLive'
 
 export default function List() {
   const { user, loading } = useAuth({ requirePerm: PERMS.VIEW_REPORTS })
@@ -21,6 +23,7 @@ export default function List() {
   const [userFilter, setUserFilter] = useState('')
   const [staff, setStaff] = useState([])
   const [busy, setBusy] = useState(false)
+  const [reporting, setReporting] = useState(false)
 
   useEffect(() => {
     if (!router.isReady) return
@@ -41,6 +44,8 @@ export default function List() {
     const p = new URLSearchParams()
     if (department) p.set('department', department)
     if (date) p.set('date', date)
+    // QA: the log, its cards and its Excel follow the MEAL date, not the entry date.
+    p.set('by', 'meal')
     if (userFilter) p.set('user', userFilter)
     fetch('/api/orders?' + p.toString())
       .then((r) => r.json())
@@ -51,6 +56,8 @@ export default function List() {
   useEffect(() => {
     if (user) load()
   }, [user, load])
+  // Note 10: new or deleted orders appear without reloading the page.
+  useLive(load, !!user)
 
   if (loading || !user) return <Spinner />
 
@@ -60,6 +67,36 @@ export default function List() {
 
   const canDelete = can(user.role, PERMS.DELETE_ORDERS)
   const canExport = can(user.role, PERMS.EXPORT_REPORTS)
+
+  // Note 4: a PDF report of exactly the orders this log shows (same filters).
+  const logReport = async () => {
+    setReporting(true)
+    try {
+      const days = orders.map((o) => o.mealDate || riyadhDate(new Date(o.createdAt))).sort()
+      const from = date || days[0] || riyadhDate()
+      const to = date || days[days.length - 1] || from
+      const menu = await fetch('/api/menu').then((r) => r.json()).then((d) => d.menu).catch(() => null)
+      await openReport({
+        kind: 'log',
+        title: 'تقرير سجل الطلبات',
+        periodLabel: from === to ? from : `${from} إلى ${to}`,
+        filtersLabel: [
+          department ? `القسم: ${byId[department]?.name || department}` : '',
+          userFilter ? `المستخدم: ${userName}` : '',
+        ].filter(Boolean).join(' · '),
+        orders,
+        from,
+        to,
+        departments,
+        deptById: byId,
+        users: staff,
+        menu,
+        generatedBy: user.name,
+      })
+    } finally {
+      setReporting(false)
+    }
+  }
 
   const remove = async (id) => {
     if (!confirm('حذف هذا الطلب؟')) return
@@ -72,11 +109,11 @@ export default function List() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>سجل الطلبات | قسم خدمات التغذية</title>
+        <title>سجل الطلبات | قسم خدمات التغذية - نيوتريا</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-8 space-y-6">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 bg-emerald-600/15 text-emerald-500 rounded-xl flex items-center justify-center">
@@ -84,7 +121,7 @@ export default function List() {
             </div>
             <div>
               <h2 className="text-2xl font-bold">سجل الطلبات</h2>
-              <p className="text-sm muted">جميع طلبات الوجبات مع تاريخ ووقت التسجيل والوقت المنقضي</p>
+              <p className="text-sm muted">جميع طلبات الوجبات حسب تاريخ الوجبة، مع وقت التسجيل والوقت المنقضي</p>
             </div>
           </div>
           {canExport && (
@@ -97,7 +134,14 @@ export default function List() {
                 <Printer size={18} /> طباعة بطاقات ({orders.length})
               </button>
               <button
-                onClick={() => exportOrdersXlsx(orders, byId, ['تقرير-الطلبات', userName].filter(Boolean).join('-'))}
+                onClick={logReport}
+                disabled={orders.length === 0 || reporting}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-navy hover:bg-navy-700 dark:bg-sky-800 text-white transition-colors disabled:opacity-50"
+              >
+                <FileText size={18} /> {reporting ? 'جارٍ التجهيز...' : 'تقرير PDF'}
+              </button>
+              <button
+                onClick={() => exportOrdersXlsx(orders, byId, ['تقرير-الطلبات', userName].filter(Boolean).join('-'), [], { date })}
                 disabled={orders.length === 0}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
               >
@@ -120,7 +164,10 @@ export default function List() {
               </option>
             ))}
           </select>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="field rounded-lg p-2 text-sm" />
+          <label className="flex items-center gap-2 text-sm">
+            <span className="muted whitespace-nowrap">تاريخ الوجبة</span>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} title="تاريخ الوجبة" className="field rounded-lg p-2 text-sm" />
+          </label>
           <label className="flex items-center gap-2">
             <Users size={16} className="muted shrink-0" />
             <select value={userFilter} onChange={(e) => setUserFilter(e.target.value)} className="field rounded-lg p-2 text-sm">
@@ -158,11 +205,12 @@ export default function List() {
                   <Th>اسم المريض</Th>
                   <Th>النوع</Th>
                   <Th>اليوم</Th>
+                  <Th>تاريخ الوجبة</Th>
                   <Th>الوجبة</Th>
                   <Th>الأساسية</Th>
                   <Th>إضافات</Th>
                   <Th>الموظف</Th>
-                  <Th>التاريخ والوقت</Th>
+                  <Th>وقت التسجيل</Th>
                   <Th>منذ</Th>
                   {canDelete && <Th />}
                 </tr>
@@ -177,15 +225,20 @@ export default function List() {
                     <Td>
                       <span
                         className={`px-2 py-0.5 rounded-full text-xs ${
-                          o.personType === 'patient' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-sky-500/15 text-sky-500'
+                          o.personType === 'patient' ? 'bg-sky-500/15 text-sky-500' : 'bg-indigo-500/15 text-indigo-400'
                         }`}
                       >
                         {personTypeName(o.personType)}
                       </span>
                     </Td>
                     <Td className="muted">{o.day ? DAY_BY_ID[o.day]?.name || o.day : '—'}</Td>
+                    <Td className="muted text-xs whitespace-nowrap" dir="ltr">{o.mealDate || '—'}</Td>
                     <Td>{MEAL_TIME_BY_ID[o.mealTime]?.name || o.mealTime}</Td>
-                    <Td>{o.mainMeal}</Td>
+                    <Td>
+                      <span className={o.mealType === 'main' ? 'text-green-600 dark:text-green-400' : o.mealType === 'optional' ? 'text-sky-500' : 'text-violet-400'}>
+                        {o.mainMeal}
+                      </span>
+                    </Td>
                     <Td className="muted text-xs max-w-[160px]">{o.options?.length ? o.options.join('، ') : '—'}</Td>
                     <Td className="muted">{o.createdByName || o.createdBy}</Td>
                     <Td className="muted text-xs whitespace-nowrap">{fmtDate(o.createdAt)}</Td>

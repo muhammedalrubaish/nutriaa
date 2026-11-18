@@ -44,19 +44,30 @@ export default function Import() {
   const [rows, setRows] = useState([])
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
+  // QA round 2: the preview applies the import's own menu rule (no orders for a day without a main meal),
+  // so a Friday row is never shown as «صالح» and then rejected by /api/bulk-orders.
+  const [menu, setMenu] = useState(null)
 
-  // Re-validate pasted or uploaded rows once the department list has loaded.
   useEffect(() => {
-    if (file) setRows(parseRows(file.rows, departments))
-    else if (text) setRows(parseImport(text, departments))
-  }, [departments])
+    if (!user) return
+    fetch('/api/menu')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.menu && setMenu(d.menu))
+      .catch(() => {})
+  }, [user])
+
+  // Re-validate pasted or uploaded rows once the department list or the menu has loaded.
+  useEffect(() => {
+    if (file) setRows(parseRows(file.rows, departments, menu))
+    else if (text) setRows(parseImport(text, departments, menu))
+  }, [departments, menu])
 
   if (loading || !user) return <Spinner />
 
   const onPaste = (v) => {
     setText(v)
     setFile(null)
-    setRows(parseImport(v, departments))
+    setRows(parseImport(v, departments, menu))
     setResult(null)
   }
   const onFile = async (e) => {
@@ -69,7 +80,7 @@ export default function Import() {
       const cells = await readXlsxRows(f)
       setFile({ name: f.name, rows: cells })
       setText('')
-      setRows(parseRows(cells, departments))
+      setRows(parseRows(cells, departments, menu))
     } catch {
       setFile(null)
       setRows([])
@@ -108,11 +119,11 @@ export default function Import() {
   return (
     <div className="min-h-screen app-bg" dir="rtl">
       <Head>
-        <title>استيراد بيانات Excel | قسم خدمات التغذية</title>
+        <title>استيراد بيانات Excel | قسم خدمات التغذية - نيوتريا</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <Nav user={user} />
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-nav space-y-6">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 pb-8 space-y-6">
         <PageHeader icon={FileSpreadsheet} title="استيراد بيانات من Excel" subtitle="أنشئ طلبات وجبات دفعة واحدة من ملف Excel مُعبَّأ مسبقاً">
           <button
             onClick={() => downloadTemplate(departments)}
@@ -180,7 +191,7 @@ export default function Import() {
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="text-right border-b border-white/10">
-                    {['#', 'الاسم', 'القسم', 'الغرفة/السرير', 'النوع', 'اليوم', 'الوجبة', 'الإضافة', 'الحالة'].map((h) => (
+                    {['الصف', 'الاسم', 'القسم', 'الغرفة/السرير', 'النوع', 'اليوم', 'الوجبة', 'الإضافة', 'الحالة'].map((h) => (
                       <th key={h} className="py-2 px-3 muted font-medium text-xs whitespace-nowrap">
                         {h}
                       </th>
@@ -190,7 +201,7 @@ export default function Import() {
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={i} className={`border-b border-white/5 ${r.valid ? '' : 'bg-rose-500/5'}`}>
-                      <td className="py-2 px-3 muted text-xs">{i + 1}</td>
+                      <td className="py-2 px-3 muted text-xs">{r.row}</td>
                       <td className="py-2 px-3 font-medium">{r.patientName || <span className="muted">—</span>}</td>
                       <td className="py-2 px-3 text-xs">
                         {byId[r.department]?.name || <span className="text-rose-400">{r.department || '؟'}</span>}
@@ -236,8 +247,16 @@ export default function Import() {
                 تم استيراد <strong>{result.imported}</strong> طلب بنجاح
                 {result.failed > 0 && (
                   <>
-                    , فشل <strong>{result.failed}</strong>
+                    , لم يُستورد <strong>{result.failed}</strong>
+                    {result.duplicates > 0 && <> (منها {result.duplicates} مكرر)</>}
                   </>
+                )}
+                {result.errors?.length > 0 && (
+                  <ul className="mt-2 space-y-1 text-rose-400 font-normal">
+                    {result.errors.slice(0, 50).map((e) => (
+                      <li key={`${e.index}`}>• الصف {e.row ?? e.index + 2}: {e.error}</li>
+                    ))}
+                  </ul>
                 )}
               </>
             )}

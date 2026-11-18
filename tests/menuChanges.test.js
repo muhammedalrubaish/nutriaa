@@ -18,11 +18,15 @@ const ROWS = [
 
 /** In-memory menu + settings, enough for the menu and notifications routes. */
 function fakeDb() {
-  const state = { menu: Object.fromEntries(ROWS.map((r) => [r.day, { ...r }])), changes: null }
+  const state = { menu: Object.fromEntries(ROWS.map((r) => [r.day, { ...r }])), changes: null, library: [] }
   const handler = sqlRouter((sql, params) => {
-    if (/select day, main_meal, optional_item from menu/.test(sql)) return Object.values(state.menu)
+    if (/select day, main_meal, optional_item, optional_item_2, optional_item_3 from menu/.test(sql)) return Object.values(state.menu)
     if (/insert into menu/.test(sql)) {
-      state.menu[params[0]] = { day: params[0], main_meal: params[1], optional_item: params[2] }
+      state.menu[params[0]] = { day: params[0], main_meal: params[1], optional_item: params[2], optional_item_2: params[3], optional_item_3: params[4] }
+      return []
+    }
+    if (/insert into meal_library/.test(sql)) {
+      state.library.push(...params[0])
       return []
     }
     if (/insert into settings/.test(sql) && params[0] === 'menu_changes') {
@@ -117,6 +121,26 @@ describe('menu change alerts', () => {
     const a = { sun: { mainMeal: 'a', optionalItem: 'b' }, mon: { mainMeal: 'c', optionalItem: '' } }
     expect(diffMenu(a, { ...a, mon: { mainMeal: 'c', optionalItem: 'd' } })).toEqual([{ day: 'mon', mainMeal: 'c', optionalItem: 'd' }])
     expect(diffMenu(a, a)).toEqual([])
+  })
+
+  it('saves three optional meals per day and alerts on a change in any of them (note 6)', async () => {
+    const res = mockRes()
+    await menu(mockReq({ method: 'PUT', user: 'u_sup', body: { menu: fullMenu({
+      mon: { mainMeal: 'وجبة دايت', optionalItem: 'فاكهة', optionalItem2: 'زبادي', optionalItem3: 'سلطة' } }) } }), res)
+    expect(res.statusCode).toBe(200)
+    expect(db.state.menu.mon).toMatchObject({ optional_item: 'فاكهة', optional_item_2: 'زبادي', optional_item_3: 'سلطة' })
+    expect(res.body.menu.mon).toEqual({ mainMeal: 'وجبة دايت', optionalItem: 'فاكهة', optionalItem2: 'زبادي', optionalItem3: 'سلطة' })
+    expect(res.body.changed).toEqual(['mon'])
+    expect(db.state.changes[0].days[0].optionalItem).toBe('فاكهة · زبادي · سلطة')
+    // Saved names feed the meal library (note 8).
+    expect(db.state.library).toEqual(expect.arrayContaining(['وجبة دايت', 'زبادي', 'سلطة']))
+  })
+
+  it('rejects optional meals on a day without a main meal', async () => {
+    const res = mockRes()
+    await menu(mockReq({ method: 'PUT', user: 'u_sup', body: { menu: fullMenu({ sun: { mainMeal: '', optionalItem: 'عصير' } }) } }), res)
+    expect(res.statusCode).toBe(400)
+    expect(res.body.error).toContain('الأحد')
   })
 })
 

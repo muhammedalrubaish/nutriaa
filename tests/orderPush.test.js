@@ -14,6 +14,7 @@ const BODY = { department: 'ob1', room: '144', bed: 1, patientName: 'رايد', 
 function db() {
   return sqlRouter((sql, params) => {
     if (/from departments/.test(sql)) return [DEPT]
+    if (/from menu/.test(sql)) return [{ day: 'thu', main_meal: 'وجبة عادية', optional_item: '', optional_item_2: '', optional_item_3: '' }]
     if (/insert into orders/.test(sql))
       return [{ id: params[0], department: params[1], room: params[2], bed: params[3], patient_name: params[4], person_type: params[5],
         day: params[6], meal_time: params[7], main_meal: params[8], meal_type: params[9], options: [], notes: '',

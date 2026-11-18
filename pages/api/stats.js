@@ -2,9 +2,11 @@ import { query } from '@/lib/db'
 import { route } from '@/lib/api'
 import { PERMS } from '@/lib/roles'
 import { listDepartments, listOrderUsers, getMinDaily, todayCountsByDepartment } from '@/lib/repo'
+import { rankMeals } from '@/lib/stats'
 import { riyadhDate, addDays, isYmd, daysBetween, weekStart } from '@/lib/time'
 
 const MAX_RANGE_DAYS = 732
+
 
 /** Trend granularity for a range of `days` days. */
 function trendUnit(days) {
@@ -37,7 +39,7 @@ export default route({
 
       const params = [from, to]
       if (createdBy) params.push(createdBy)
-      const [rows, departments, minDaily, todayCounts, users] = await Promise.all([
+      const [rows, departments, minDaily, todayCounts, users, mealRows, mealsAll, staffAll] = await Promise.all([
         query(
           `select department, person_type, meal_time, created_by,
                   to_char((created_at at time zone 'Asia/Riyadh')::date, 'YYYY-MM-DD') as d,
@@ -56,6 +58,26 @@ export default route({
         // Shortfall alerts are always about today and all staff, whatever the filter.
         todayCountsByDepartment(today),
         listOrderUsers(),
+        // Note 5: meals in the selected period, by person type.
+        query(
+          `select btrim(main_meal) as name, person_type, meal_type, count(*)::int as n
+           from orders
+           where created_at >= ($1::timestamp at time zone 'Asia/Riyadh')
+             and created_at < (($2::date + 1)::timestamp at time zone 'Asia/Riyadh')
+             ${createdBy ? 'and created_by = $3' : ''}
+           group by 1, 2, 3`,
+          params,
+        ),
+        // Note 12: every meal over all time (a fixed chart, independent of the filters).
+        query(`select btrim(main_meal) as name, count(*)::int as n from orders group by 1 order by 2 desc, 1 limit 30`),
+        // Note 13: orders entered by each specialist and distributor over all time (accounts with none included).
+        query(
+          `select u.username, u.name, u.role, count(o.id)::int as n
+           from users u left join orders o on o.created_by = u.username
+           where u.role in ('specialist', 'distributor')
+           group by u.username, u.name, u.role
+           order by n desc, u.name`,
+        ),
       ])
 
       const summary = { total: 0, patient: 0, companion: 0 }
@@ -91,10 +113,14 @@ export default route({
         .map((d) => ({ department: d.id, name: d.name, total: todayCounts[d.id] || 0 }))
         .filter((d) => d.total < minDaily)
 
+      const meals = rankMeals(mealRows)
       return res.status(200).json({
         today, from, to, days, user: createdBy || null, minDaily,
         summary, byDepartment, byPersonType: { patient: summary.patient, companion: summary.companion }, byMealTime,
         byUser, trend, lowAlerts, users,
+        meals, mealsTop: meals.slice(0, 3), mealsBottom: meals.length > 3 ? meals.slice(-3).reverse() : [],
+        mealsAllTime: mealsAll.map((r) => ({ name: r.name, total: r.n })),
+        staffAllTime: staffAll.map((r) => ({ username: r.username, name: r.name, role: r.role, total: r.n })),
       })
     },
   },

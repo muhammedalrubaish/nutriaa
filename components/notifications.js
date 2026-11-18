@@ -73,7 +73,10 @@ export function NotificationsBell({ user, data, setData }) {
     }
   }, [])
 
-  const canDelete = can(user?.role, PERMS.SEND_NOTES)
+  // Note 11: dismissing a note in the bell also records it as read for its sender's receipts.
+  const markRead = (ids) =>
+    ids.length &&
+    fetch('/api/notes', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) }).catch(() => {})
   const { alerts, notes, orders, menu } = visible(data, dismissed)
   const count = alerts.length + notes.length + orders.length + menu.length
 
@@ -81,13 +84,12 @@ export function NotificationsBell({ user, data, setData }) {
     setDismissed(d)
     writeDismissed(d)
   }
-  const dismiss = (kind, id) => save({ ...dismissed, date: riyadhDate(), [kind]: [...(dismissed[kind] || []), id] })
-  const deleteNote = async (id) => {
-    await fetch('/api/notes?id=' + encodeURIComponent(id), { method: 'DELETE' }).catch(() => {})
-    dismiss('notes', id)
-    setData?.((d) => ({ ...(d || EMPTY), notes: (d?.notes || []).filter((n) => n.id !== id) }))
+  const dismiss = (kind, id) => {
+    if (kind === 'notes') markRead([id])
+    save({ ...dismissed, date: riyadhDate(), [kind]: [...(dismissed[kind] || []), id] })
   }
-  const readAll = () =>
+  const readAll = () => {
+    markRead(notes.map((n) => n.id))
     save({
       date: riyadhDate(),
       alerts: (data?.alerts || []).map((a) => a.department),
@@ -96,6 +98,7 @@ export function NotificationsBell({ user, data, setData }) {
       // Only ids still listed, so the stored list stays small.
       menu: (data?.menuChanges || []).map((m) => m.id),
     })
+  }
 
   return (
     <div className="relative" ref={ref}>
@@ -176,7 +179,7 @@ export function NotificationsBell({ user, data, setData }) {
               </Group>
             )}
             {notes.length > 0 && (
-              <Group title="ملاحظات المشرف" count={notes.length}>
+              <Group title="ملاحظات لك" count={notes.length}>
                 {notes.map((n) => (
                   <Item
                     key={n.id}
@@ -184,7 +187,6 @@ export function NotificationsBell({ user, data, setData }) {
                     tone="text-emerald-500 bg-emerald-500/10"
                     title={n.message}
                     onDismiss={() => dismiss('notes', n.id)}
-                    onDelete={canDelete ? () => deleteNote(n.id) : null}
                   >
                     <p className="text-[11px] muted mt-1">
                       {n.department ? (byId[n.department]?.name || n.department) + ' · ' : ''}

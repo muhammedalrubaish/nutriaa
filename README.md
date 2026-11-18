@@ -53,7 +53,7 @@
 
 ## English
 
-Hospital meal-ordering app (Arabic, RTL) rebuilt from the production site. Stack: Next.js 14 Pages Router, React 18, Tailwind 3, framer-motion, lucide-react, Cairo font, Supabase Postgres via `pg`.
+Hospital meal-ordering app (Arabic, RTL) rebuilt from the production site. Stack: Next.js 15 Pages Router, React 18, Tailwind 3, framer-motion, lucide-react, Cairo font, Supabase Postgres via `pg`.
 
 ### Setup
 1. `npm install`, copy `.env.example` → `.env.local` and fill it in.
@@ -62,6 +62,16 @@ Hospital meal-ordering app (Arabic, RTL) rebuilt from the production site. Stack
 
 Roles, highest first: sysadmin (exactly one) → manager → supervisor (operations only) → specialist / distributor. Specialists enter orders and use the order log (export, print cards) but have no dashboard (`view_dashboard`). Menu edits raise a bell alert (kept a week) and a push to order-entry staff; the last 20 live in `settings.menu_changes`, so no migration is needed. Each user manages only accounts ranked below them; enforced in `/api/users` and, for the single sysadmin, by a unique index.
 4. `npm run dev`.
+
+### Migrations 005–007 (notes of 2026-11-17)
+All idempotent (safe to re-run) and applied by `npm run db:migrate`:
+- `005_orders_unique_meal_slot.sql` — `orders.meal_date` (generated: the nearest date on/after the Riyadh entry date whose weekday is `day`) and the unique slot `(department, room, bed, meal_date, meal_time, person_type, patient_name)`. It stops with a clear message if existing rows already hold duplicates.
+- `006_menu_optionals_meal_library.sql` — `menu.optional_item_2/_3` and the `meal_library` table (seeded from the menu and past orders).
+- `007_note_recipients.sql` — `notes.audience/target_roles`, `note_recipients`, `note_reads`.
+
+Launching on the existing production database: see `deploy/DEPLOY-PLAN.md` (Arabic) — run `deploy/2026-11-launch-old-db.sql` (005–007 in one idempotent transaction, recorded in `schema_migrations`) **before** merging; `deploy/rollback-2026-11-launch-old-db.sql` undoes it.
+
+Printing and PDF never leave the page: cards and reports open in an in-app A4 view (`lib/printView.js`) with «طباعة» / «PDF» / «رجوع»; PDFs are built from the same sheets (`lib/report/pdf.js`, html2canvas-pro + jsPDF) and handed over with the iOS-safe `saveFile`.
 
 ### Supabase
 - Use **Project Settings → Database → Connection string → Transaction pooler** (port 6543) as `DATABASE_URL`, with your database password filled in.

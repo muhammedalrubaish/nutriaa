@@ -3,6 +3,7 @@ import { route } from '@/lib/api'
 import { can, PERMS } from '@/lib/roles'
 import { listDepartments, getMinDaily, recentMenuChanges, rowToOrder, todayCountsByDepartment } from '@/lib/repo'
 import { riyadhDate } from '@/lib/time'
+import { listNotesFor } from '@/lib/notes'
 
 // How many of today's newest orders are surfaced in the bell.
 const ORDER_LIMIT = 30
@@ -17,10 +18,8 @@ export default route({
         listDepartments(),
         getMinDaily(),
         todayCountsByDepartment(today),
-        query(
-          `select id, message, department, created_by, created_by_name, created_at
-           from notes order by created_at desc limit 50`,
-        ),
+        // Only notes addressed to me (or sent by me), with my read state.
+        listNotesFor(user),
         withOrders
           ? query(
               `select * from orders
@@ -37,14 +36,9 @@ export default route({
         .filter((a) => a.total < minDaily)
       return res.status(200).json({
         alerts,
-        notes: notes.map((n) => ({
-          id: n.id,
-          message: n.message,
-          department: n.department,
-          createdBy: n.created_by,
-          createdByName: n.created_by_name,
-          createdAt: new Date(n.created_at).toISOString(),
-        })),
+        // The bell lists notes for me; my own sent notes (with read receipts) live on the dashboard.
+        notes: notes.filter((n) => !n.mine && !n.readAt),
+        sentNotes: notes.filter((n) => n.mine),
         orders: orders.map((r) => {
           const o = rowToOrder(r)
           return {
