@@ -137,3 +137,65 @@ select option {
     display: none !important;
   }
 }
+
+/* ---- © footer: fixed to the screen bottom like the Cafeteria app (components/Footer.js). Small, centred,
+   safe-area aware; sits on top of the phone tab nav when there is one. Content is padded by its measured
+   height so nothing hides under it. No rubber-band on the page itself (pull-to-refresh handles the top). ---- */
+html {
+  overscroll-behavior-y: none;
+}
+/* Room for the fixed footer and, on phones, the tab nav under it (both measured by components/Footer.js). */
+body {
+  padding-bottom: calc(var(--footer-real, calc(2.6rem + env(safe-area-inset-bottom, 0px))) + var(--nav-real, 0px));
+}
+/* Full-height pages (login, spinner…) fill the screen minus the footer, so a short page never scrolls. */
+.min-h-screen {
+  min-height: calc(100vh - var(--footer-real, 0px) - var(--nav-real, 0px));
+  min-height: calc(100dvh - var(--footer-real, 0px) - var(--nav-real, 0px));
+}
+.app-footer {
+  position: fixed;
+  inset-inline: 0;
+  bottom: var(--nav-real, 0px);
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.6rem;
+  padding: 0.2rem max(0.5rem, env(safe-area-inset-left, 0px)) calc(0.2rem + env(safe-area-inset-bottom, 0px)) max(0.5rem, env(safe-area-inset-right, 0px));
+  font-size: 10.5px;
+  line-height: 1.35;
+  text-align: center;
+  color: rgb(var(--muted));
+  background: rgb(var(--surface) / 0.94);
+  border-top: 1px solid rgb(var(--border));
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.app-footer[data-on-nav] {
+  padding-bottom: 0.2rem;
+}
+.app-footer-link {
+  color: #0284c7;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 0.1rem 0.25rem;
+}
+.dark .app-footer-link {
+  color: #38bdf8;
+}
+@media (max-width: 400px) {
+  .app-footer {
+    font-size: 9.5px;
+  }
+}
+@media print {
+  body {
+    padding-bottom: 0 !important;
+  }
+  .app-footer {
+    display: none !important;
+  }
+}
