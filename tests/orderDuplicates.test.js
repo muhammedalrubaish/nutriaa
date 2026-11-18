@@ -1,6 +1,9 @@
 // Note 7: duplicate orders are keyed on the MEAL's date (meal_date), not the weekday alone and not the entry date.
-// The fake DB enforces the same unique slot as db/migrations/005 (department, room, bed, meal_date, meal_time,
-// person_type, patient_name), computing meal_date like the generated column, under a fake clock.
+// Abdullah (2026-11-18): the slot ignores the name — department, room, bed, meal_date, meal_time, person_type.
+// The fake DB computes meal_date like the generated column, under a fake clock, and enforces the unique indexes:
+// live = only orders_unique_slot from db/migrations/005 (with patient_name); after 008 = that one plus the partial
+// orders_unique_bed_slot (no name, meal_date >= 2026-11-19). The app must apply the new rule on both, so the code
+// can ship before the SQL runs.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mockReq, mockRes, sqlRouter } from './helpers'
 
@@ -21,9 +24,13 @@ const TUE = new Date('2026-11-17T06:00:00Z') // Tuesday
 const WED = new Date('2026-11-18T06:00:00Z') // Wednesday
 const NEXT_TUE = new Date('2026-11-24T06:00:00Z')
 
-const SLOT = ['department', 'room', 'bed', 'meal_date', 'meal_time', 'person_type', 'patient_name']
+const BED_SLOT = ['department', 'room', 'bed', 'meal_date', 'meal_time', 'person_type']
+const IDX_005 = { name: 'orders_unique_slot', cols: [...BED_SLOT, 'patient_name'] }
+const IDX_008 = { name: 'orders_unique_bed_slot', cols: BED_SLOT, from: '2026-11-19' }
+const LIVE = [IDX_005]
+const AFTER_008 = [IDX_005, IDX_008]
 
-function fakeDb() {
+function fakeDb(indexes = AFTER_008) {
   const rows = []
   const handler = sqlRouter((sql, p) => {
     if (/from departments/.test(sql)) return [DEPT]
@@ -38,16 +45,19 @@ function fakeDb() {
         created_at: created.toISOString(), meal_date: mealDateFor(riyadhDate(created), p[6]),
       }
       if (rows.some((r) => r.id === row.id)) throw Object.assign(new Error('dup key'), { code: '23505', constraint: 'orders_pkey' })
-      if (rows.some((r) => SLOT.every((k) => String(r[k]) === String(row[k]))))
-        throw Object.assign(new Error('dup slot'), { code: '23505', constraint: 'orders_unique_slot' })
+      for (const ix of indexes) {
+        if (ix.from && !(row.meal_date >= ix.from)) continue
+        if (rows.some((r) => (!ix.from || r.meal_date >= ix.from) && ix.cols.every((k) => String(r[k]) === String(row[k]))))
+          throw Object.assign(new Error('dup slot'), { code: '23505', constraint: ix.name })
+      }
       rows.push(row)
       return [row]
     }
     if (/select \* from orders where id = \$1/.test(sql)) return rows.filter((r) => r.id === p[0])
     if (/select \* from orders\s+where department = \$1/.test(sql)) {
-      const [department, room, bed, mealTime, personType, name, mealDate] = p
+      const [department, room, bed, mealTime, personType, mealDate] = p
       return rows.filter((r) => r.department === department && r.room === room && Number(r.bed) === Number(bed) &&
-        r.meal_time === mealTime && r.person_type === personType && r.patient_name === name && r.meal_date === mealDate)
+        r.meal_time === mealTime && r.person_type === personType && r.meal_date === mealDate)
     }
     if (/count\(\*\)::int as n from orders/.test(sql)) return [{ n: rows.length }]
     return []
@@ -91,6 +101,7 @@ describe('duplicate rule (meal_date)', () => {
     expect(res.body.duplicate).toMatchObject({ createdByName: 'موزعة', day: 'wed', mealDate: '2026-11-18' })
     expect(res.body.error).toContain('سجّله موزعة')
     expect(res.body.error).toContain('غداء الأربعاء 18/11/2026')
+    expect(res.body.error).toContain('باسم «نورة»')
     expect(db.rows).toHaveLength(1)
     // No push for a rejected duplicate.
     expect(sendToAll).toHaveBeenCalledTimes(1)
@@ -172,9 +183,9 @@ describe('QA round 1: orders for a day without a main meal', () => {
 
 describe('QA round 1: duplicate alert wording', () => {
   it('uses Arabic ص/م with Latin digits and a d/m/y meal date', () => {
-    const msg = duplicateMessage({ mealTime: 'lunch', day: 'wed', mealDate: '2026-11-18', createdByName: 'نورة', createdAt: '2026-11-17T19:05:00Z' })
-    expect(msg).toBe('هذا الطلب مسجّل مسبقًا (غداء الأربعاء 18/11/2026) — سجّله نورة في 17/11/2026 10:05 م')
-    expect(duplicateMessage({ mealTime: 'lunch', day: 'wed', createdByName: 'x', createdAt: '2026-11-16T21:30:00Z' })).toMatch(/17\/11\/2026 12:30 ص$/)
+    const msg = duplicateMessage({ room: '130', bed: 2, personType: 'patient', patientName: 'سارة', mealTime: 'lunch', day: 'wed', mealDate: '2026-11-18', createdByName: 'نورة', createdAt: '2026-11-17T19:05:00Z' })
+    expect(msg).toBe('يوجد طلب مسجّل مسبقًا لنفس الغرفة والسرير والوجبة: غرفة 130 سرير B (مريض) — غداء الأربعاء 18/11/2026 باسم «سارة» — سجّله نورة في 17/11/2026 10:05 م')
+    expect(duplicateMessage({ room: '130', bed: 1, personType: 'patient', mealTime: 'lunch', day: 'wed', createdByName: 'x', createdAt: '2026-11-16T21:30:00Z' })).toMatch(/17\/11\/2026 12:30 ص$/)
     expect(msg).not.toMatch(/am|pm/i)
   })
 })
@@ -194,5 +205,103 @@ describe('QA round 1: the log filters by meal date', () => {
     await orders(mockReq({ method: 'GET', user: 'u_sup', query: { date: '2026-11-18' } }), res)
     expect(seen[1].sql).toMatch(/created_at >= /)
     expect(seen[1].sql).not.toMatch(/meal_date/)
+  })
+})
+
+describe('Abdullah 2026-11-18: same bed and meal under another name is a duplicate', () => {
+  for (const [label, slot] of [['after 008 (005 + partial bed slot)', AFTER_008], ['live index only (005, with name)', LIVE]]) {
+    describe(label, () => {
+      beforeEach(() => {
+        db = fakeDb(slot)
+        query.mockImplementation(db.handler)
+      })
+
+      it('rejects a second order for the same room, bed, meal and person type under another name (409)', async () => {
+        vi.setSystemTime(TUE)
+        expect((await post(BODY)).statusCode).toBe(201)
+        const res = await post({ ...BODY, patientName: 'سارة' }, 'u_spec')
+        expect(res.statusCode).toBe(409)
+        expect(res.body.duplicate).toMatchObject({ patientName: 'نورة', room: '130', bed: 2 })
+        expect(res.body.error).toContain('لنفس الغرفة والسرير والوجبة')
+        expect(res.body.error).toContain('غرفة 130 سرير B (مريض)')
+        expect(res.body.error).toContain('باسم «نورة»')
+        expect(db.rows).toHaveLength(1)
+      })
+
+      it('still blocks it when the other name is entered on the meal day itself', async () => {
+        vi.setSystemTime(TUE)
+        expect((await post(BODY)).statusCode).toBe(201)
+        vi.setSystemTime(WED)
+        expect((await post({ ...BODY, patientName: 'سارة' })).statusCode).toBe(409)
+      })
+
+      it('still allows the companion, another bed, another meal time and next week under another name', async () => {
+        vi.setSystemTime(TUE)
+        expect((await post(BODY)).statusCode).toBe(201)
+        expect((await post({ ...BODY, patientName: 'سارة', personType: 'companion' })).statusCode).toBe(201)
+        expect((await post({ ...BODY, patientName: 'سارة', bed: 3 })).statusCode).toBe(201)
+        expect((await post({ ...BODY, patientName: 'سارة', mealTime: 'dinner' })).statusCode).toBe(201)
+        vi.setSystemTime(NEXT_TUE)
+        expect((await post({ ...BODY, patientName: 'سارة' })).statusCode).toBe(201)
+      })
+
+      it('replays the same submit key instead of reporting a duplicate', async () => {
+        vi.setSystemTime(TUE)
+        const key = 'o_00112233445566778899'
+        expect((await post({ ...BODY, id: key })).statusCode).toBe(201)
+        const again = await post({ ...BODY, id: key })
+        expect(again.statusCode).toBe(200)
+        expect(db.rows).toHaveLength(1)
+      })
+
+      it('bulk import rejects the second name for the same bed and meal', async () => {
+        vi.setSystemTime(TUE)
+        const res = mockRes()
+        await bulk(mockReq({ method: 'POST', user: 'u_mgr', body: { orders: [{ ...BODY, row: 2 }, { ...BODY, patientName: 'سارة', row: 3 }] } }), res)
+        expect(res.body.imported).toBe(1)
+        expect(res.body.errors).toEqual([expect.objectContaining({ row: 3, duplicate: true, error: expect.stringContaining('باسم «نورة»') })])
+      })
+    })
+  }
+
+  // A concurrent insert that passed the app check: the first slot lookup sees nothing, the database decides.
+  function raceOnce() {
+    let first = true
+    const base = db.handler
+    query.mockImplementation((sql, p) => {
+      if (first && /select \* from orders\s+where department = \$1/.test(sql)) {
+        first = false
+        return []
+      }
+      return base(sql, p)
+    })
+  }
+
+  it('a clash on the new partial index orders_unique_bed_slot (meal date from 2026-11-19) still maps to a 409', async () => {
+    vi.setSystemTime(NEXT_TUE) // Wednesday lunch -> 2026-11-25
+    expect((await post(BODY)).statusCode).toBe(201)
+    raceOnce()
+    const res = await post({ ...BODY, patientName: 'سارة' })
+    expect(res.statusCode).toBe(409)
+    expect(res.body.duplicate).toMatchObject({ patientName: 'نورة', mealDate: '2026-11-25' })
+    expect(db.rows).toHaveLength(1)
+  })
+
+  it('a clash on the old index orders_unique_slot (same name) still maps to a 409', async () => {
+    vi.setSystemTime(TUE) // meal 2026-11-18, before the partial index starts
+    expect((await post(BODY)).statusCode).toBe(201)
+    raceOnce()
+    const res = await post(BODY)
+    expect(res.statusCode).toBe(409)
+    expect(res.body.duplicate).toMatchObject({ patientName: 'نورة' })
+  })
+
+  it('the partial index leaves meals before 2026-11-19 to the app check (history untouched)', async () => {
+    vi.setSystemTime(TUE)
+    expect((await post(BODY)).statusCode).toBe(201)
+    raceOnce()
+    // Only a true race could get past the app check here; the database then accepts the other name.
+    expect((await post({ ...BODY, patientName: 'سارة' })).statusCode).toBe(201)
+    expect((await post({ ...BODY, patientName: 'ريم' })).statusCode).toBe(409)
   })
 })
