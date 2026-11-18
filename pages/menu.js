@@ -6,7 +6,7 @@ import Spinner from '@/components/Spinner'
 import { useAuth } from '@/lib/useAuth'
 import { can, PERMS } from '@/lib/roles'
 import { MAIN_MEALS, OPTIONAL_ITEMS, WEEK_DAYS } from '@/lib/constants'
-import { MENU_TEMPLATE_HEADER, parseMenuSheet } from '@/lib/menuImport'
+import { MENU_TEMPLATE_HEADER, optionalsWithoutMain, parseMenuSheet } from '@/lib/menuImport'
 import { downloadXlsx, readXlsxRows } from '@/lib/xlsx'
 import { useLive } from '@/lib/useLive'
 
@@ -266,9 +266,13 @@ function ImportPreview({ preview, current, saving, onCancel, onSave }) {
             {WEEK_DAYS.filter((d) => days.includes(d.id)).map((d) => {
               const m = draft[d.id] || {}
               const c = current[d.id] || {}
+              // QA round 2: same rule as saving — an empty day (e.g. Friday/Saturday) is allowed and shown
+              // as «لا توجد وجبات»; «— مطلوبة —» in red only where saving is blocked (optionals, no main).
+              const blocked = optionalsWithoutMain(m)
               const cell = (k) => (
                 <td className={`p-2 ${(m[k] || '') !== (c[k] || '') ? 'font-bold text-sky-600 dark:text-sky-400' : ''}`}>
-                  {m[k] || (k === 'mainMeal' ? <span className="text-rose-500">— مطلوبة —</span> : '—')}
+                  {m[k] ||
+                    (k !== 'mainMeal' ? '—' : blocked ? <span className="text-rose-500">— مطلوبة —</span> : <span className="muted font-normal">لا توجد وجبات</span>)}
                 </td>
               )
               return (

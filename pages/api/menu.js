@@ -2,6 +2,7 @@ import { query } from '@/lib/db'
 import { route, str } from '@/lib/api'
 import { PERMS } from '@/lib/roles'
 import { WEEK_DAYS } from '@/lib/constants'
+import { optionalsWithoutMain } from '@/lib/menuImport'
 import { OPTIONAL_KEYS, addToMealLibrary, diffMenu, notifyMenuChange, readMenu } from '@/lib/repo'
 
 export default route({
@@ -21,7 +22,7 @@ export default route({
         const main = str(m.mainMeal, 200)
         const opts = OPTIONAL_KEYS.map((k) => str(m[k], 200))
         // An optional item can only be set together with a main meal for the same day.
-        if (!main && opts.some(Boolean)) {
+        if (optionalsWithoutMain({ mainMeal: main, optionalItem: opts[0], optionalItem2: opts[1], optionalItem3: opts[2] })) {
           return res.status(400).json({ error: `يوم ${d.name}: لا يمكن حفظ وجبات اختيارية بدون وجبة أساسية` })
         }
         names.main.push(main)

@@ -141,7 +141,7 @@ export default function List() {
                 <FileText size={18} /> {reporting ? 'جارٍ التجهيز...' : 'تقرير PDF'}
               </button>
               <button
-                onClick={() => exportOrdersXlsx(orders, byId, ['تقرير-الطلبات', userName].filter(Boolean).join('-'))}
+                onClick={() => exportOrdersXlsx(orders, byId, ['تقرير-الطلبات', userName].filter(Boolean).join('-'), [], { date })}
                 disabled={orders.length === 0}
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition-colors disabled:opacity-50"
               >

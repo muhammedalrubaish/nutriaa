@@ -44,19 +44,30 @@ export default function Import() {
   const [rows, setRows] = useState([])
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
+  // QA round 2: the preview applies the import's own menu rule (no orders for a day without a main meal),
+  // so a Friday row is never shown as «صالح» and then rejected by /api/bulk-orders.
+  const [menu, setMenu] = useState(null)
 
-  // Re-validate pasted or uploaded rows once the department list has loaded.
   useEffect(() => {
-    if (file) setRows(parseRows(file.rows, departments))
-    else if (text) setRows(parseImport(text, departments))
-  }, [departments])
+    if (!user) return
+    fetch('/api/menu')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.menu && setMenu(d.menu))
+      .catch(() => {})
+  }, [user])
+
+  // Re-validate pasted or uploaded rows once the department list or the menu has loaded.
+  useEffect(() => {
+    if (file) setRows(parseRows(file.rows, departments, menu))
+    else if (text) setRows(parseImport(text, departments, menu))
+  }, [departments, menu])
 
   if (loading || !user) return <Spinner />
 
   const onPaste = (v) => {
     setText(v)
     setFile(null)
-    setRows(parseImport(v, departments))
+    setRows(parseImport(v, departments, menu))
     setResult(null)
   }
   const onFile = async (e) => {
@@ -69,7 +80,7 @@ export default function Import() {
       const cells = await readXlsxRows(f)
       setFile({ name: f.name, rows: cells })
       setText('')
-      setRows(parseRows(cells, departments))
+      setRows(parseRows(cells, departments, menu))
     } catch {
       setFile(null)
       setRows([])

@@ -1,6 +1,8 @@
 // Note 9 + QA: menu import from Excel and order import keep the real Excel row numbers.
 import { describe, it, expect } from 'vitest'
-import { parseMenuSheet } from '@/lib/menuImport'
+import { optionalsWithoutMain, parseMenuSheet } from '@/lib/menuImport'
+import { ordersXlsxName } from '@/lib/export'
+import { riyadhDate } from '@/lib/time'
 import { parseImport, parseRows } from '@/lib/importParser'
 import { splitNav, MAX_BOTTOM } from '@/lib/nav'
 import { rankMeals } from '@/lib/stats'
@@ -58,6 +60,39 @@ describe('order import row numbers', () => {
   it('numbers pasted lines by their own line number', () => {
     const rows = parseImport('h\tx\n\nنورة\tob1\t130\t1\tمريض\tالأحد\tغداء\tكبسة', DEPTS)
     expect(rows[0].row).toBe(3)
+  })
+})
+
+describe('QA round 2: previews follow the save/import rules', () => {
+  const DEPTS = [{ id: 'ob1', name: 'قسم الولادة ١', roomFrom: 126, roomTo: 148, extraRooms: [], rooms: [], active: true }]
+  const MENU = { sun: { mainMeal: 'كبسة' }, fri: { mainMeal: '' }, sat: {} }
+  const cells = (day) => row(5, ['نورة', 'ob1', '130', '1', 'مريض', day, 'غداء', 'كبسة'])
+
+  it('order import preview rejects a Friday row (no main meal) with the import\'s own message', () => {
+    const [fri] = parseRows([row(1, ['h']), cells('الجمعة')], DEPTS, MENU)
+    expect(fri.valid).toBe(false)
+    expect(fri.errors).toEqual(['لا توجد وجبة أساسية ليوم الجمعة في القائمة — لا يمكن إدخال طلب له'])
+    const [sun] = parseRows([row(1, ['h']), cells('الأحد')], DEPTS, MENU)
+    expect(sun.valid).toBe(true)
+    // Pasted rows too.
+    expect(parseImport('h\nنورة\tob1\t130\t1\tمريض\tالسبت\tغداء\tكبسة', DEPTS, MENU)[0].valid).toBe(false)
+    // Before the menu has loaded the preview cannot judge the day; the server still rejects it.
+    expect(parseRows([row(1, ['h']), cells('الجمعة')], DEPTS)[0].valid).toBe(true)
+  })
+
+  it('menu preview: an empty day is allowed (not «مطلوبة»); only optionals without a main meal block saving', () => {
+    expect(optionalsWithoutMain({ mainMeal: '', optionalItem: '', optionalItem2: '', optionalItem3: '' })).toBe(false)
+    expect(optionalsWithoutMain({})).toBe(false)
+    expect(optionalsWithoutMain({ mainMeal: '', optionalItem2: 'فاكهة' })).toBe(true)
+    expect(optionalsWithoutMain({ mainMeal: '  ', optionalItem: ' ' })).toBe(false)
+    expect(optionalsWithoutMain({ mainMeal: 'كبسة', optionalItem: 'فاكهة' })).toBe(false)
+  })
+
+  it('log Excel file is named after the filter date, else today', () => {
+    expect(ordersXlsxName('تقرير-الطلبات', { date: '2026-11-19' })).toBe('تقرير-الطلبات-2026-11-19')
+    expect(ordersXlsxName('تقرير-الطلبات', { date: '' })).toBe(`تقرير-الطلبات-${riyadhDate()}`)
+    expect(ordersXlsxName('تقرير-الطلبات', { date: '19/11 → x' })).toBe(`تقرير-الطلبات-${riyadhDate()}`)
+    expect(ordersXlsxName('x', { dated: false, date: '2026-11-19' })).toBe('x')
   })
 })
 
