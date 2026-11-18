@@ -1,8 +1,9 @@
 // Note 7: duplicate orders are keyed on the MEAL's date (meal_date), not the weekday alone and not the entry date.
 // Abdullah (2026-11-18): the slot ignores the name — department, room, bed, meal_date, meal_time, person_type.
-// The fake DB computes meal_date like the generated column, under a fake clock, and enforces either unique index:
-// the live one from db/migrations/005 (with patient_name) or the new one from 008 (without). The app must apply
-// the new rule on both, so the code can ship before the SQL runs.
+// The fake DB computes meal_date like the generated column, under a fake clock, and enforces the unique indexes:
+// live = only orders_unique_slot from db/migrations/005 (with patient_name); after 008 = that one plus the partial
+// orders_unique_bed_slot (no name, meal_date >= 2026-11-19). The app must apply the new rule on both, so the code
+// can ship before the SQL runs.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mockReq, mockRes, sqlRouter } from './helpers'
 
@@ -23,10 +24,13 @@ const TUE = new Date('2026-11-17T06:00:00Z') // Tuesday
 const WED = new Date('2026-11-18T06:00:00Z') // Wednesday
 const NEXT_TUE = new Date('2026-11-24T06:00:00Z')
 
-const SLOT_008 = ['department', 'room', 'bed', 'meal_date', 'meal_time', 'person_type']
-const SLOT_005 = [...SLOT_008, 'patient_name']
+const BED_SLOT = ['department', 'room', 'bed', 'meal_date', 'meal_time', 'person_type']
+const IDX_005 = { name: 'orders_unique_slot', cols: [...BED_SLOT, 'patient_name'] }
+const IDX_008 = { name: 'orders_unique_bed_slot', cols: BED_SLOT, from: '2026-11-19' }
+const LIVE = [IDX_005]
+const AFTER_008 = [IDX_005, IDX_008]
 
-function fakeDb(SLOT = SLOT_008) {
+function fakeDb(indexes = AFTER_008) {
   const rows = []
   const handler = sqlRouter((sql, p) => {
     if (/from departments/.test(sql)) return [DEPT]
@@ -41,8 +45,11 @@ function fakeDb(SLOT = SLOT_008) {
         created_at: created.toISOString(), meal_date: mealDateFor(riyadhDate(created), p[6]),
       }
       if (rows.some((r) => r.id === row.id)) throw Object.assign(new Error('dup key'), { code: '23505', constraint: 'orders_pkey' })
-      if (rows.some((r) => SLOT.every((k) => String(r[k]) === String(row[k]))))
-        throw Object.assign(new Error('dup slot'), { code: '23505', constraint: 'orders_unique_slot' })
+      for (const ix of indexes) {
+        if (ix.from && !(row.meal_date >= ix.from)) continue
+        if (rows.some((r) => (!ix.from || r.meal_date >= ix.from) && ix.cols.every((k) => String(r[k]) === String(row[k]))))
+          throw Object.assign(new Error('dup slot'), { code: '23505', constraint: ix.name })
+      }
       rows.push(row)
       return [row]
     }
@@ -202,7 +209,7 @@ describe('QA round 1: the log filters by meal date', () => {
 })
 
 describe('Abdullah 2026-11-18: same bed and meal under another name is a duplicate', () => {
-  for (const [label, slot] of [['new index (008, no name)', SLOT_008], ['live index (005, with name)', SLOT_005]]) {
+  for (const [label, slot] of [['after 008 (005 + partial bed slot)', AFTER_008], ['live index only (005, with name)', LIVE]]) {
     describe(label, () => {
       beforeEach(() => {
         db = fakeDb(slot)
@@ -257,10 +264,8 @@ describe('Abdullah 2026-11-18: same bed and meal under another name is a duplica
     })
   }
 
-  it('the database index (race) still maps to a 409 with the existing order', async () => {
-    vi.setSystemTime(TUE)
-    expect((await post(BODY)).statusCode).toBe(201)
-    // Simulate a concurrent insert that passed the app check: the first slot lookup sees nothing.
+  // A concurrent insert that passed the app check: the first slot lookup sees nothing, the database decides.
+  function raceOnce() {
     let first = true
     const base = db.handler
     query.mockImplementation((sql, p) => {
@@ -270,8 +275,33 @@ describe('Abdullah 2026-11-18: same bed and meal under another name is a duplica
       }
       return base(sql, p)
     })
+  }
+
+  it('a clash on the new partial index orders_unique_bed_slot (meal date from 2026-11-19) still maps to a 409', async () => {
+    vi.setSystemTime(NEXT_TUE) // Wednesday lunch -> 2026-11-25
+    expect((await post(BODY)).statusCode).toBe(201)
+    raceOnce()
     const res = await post({ ...BODY, patientName: 'سارة' })
     expect(res.statusCode).toBe(409)
+    expect(res.body.duplicate).toMatchObject({ patientName: 'نورة', mealDate: '2026-11-25' })
+    expect(db.rows).toHaveLength(1)
+  })
+
+  it('a clash on the old index orders_unique_slot (same name) still maps to a 409', async () => {
+    vi.setSystemTime(TUE) // meal 2026-11-18, before the partial index starts
+    expect((await post(BODY)).statusCode).toBe(201)
+    raceOnce()
+    const res = await post(BODY)
+    expect(res.statusCode).toBe(409)
     expect(res.body.duplicate).toMatchObject({ patientName: 'نورة' })
+  })
+
+  it('the partial index leaves meals before 2026-11-19 to the app check (history untouched)', async () => {
+    vi.setSystemTime(TUE)
+    expect((await post(BODY)).statusCode).toBe(201)
+    raceOnce()
+    // Only a true race could get past the app check here; the database then accepts the other name.
+    expect((await post({ ...BODY, patientName: 'سارة' })).statusCode).toBe(201)
+    expect((await post({ ...BODY, patientName: 'ريم' })).statusCode).toBe(409)
   })
 })
