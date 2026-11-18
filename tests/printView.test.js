@@ -4,7 +4,7 @@ import { FULL_PAGE_PRINT_CSS, IOS_TALL_PRINT_CSS, VIEW_CSS, isFullPagePrintEngin
 describe('print view layout (Abdullah 18 Nov: log report printed shrunk on iPhone)', () => {
   it('takes the app out of layout while the view is open, on screen too, so nothing wider than a sheet is printed', () => {
     const screen = VIEW_CSS.slice(0, VIEW_CSS.indexOf('@media print'))
-    expect(screen).toMatch(/html\.print-view-open body > \*:not\(#print-view\) \{ display: none !important; \}/)
+    expect(screen).toMatch(/html\.print-view-open body > \*:not\(#print-view\):not\(\[data-pv-offscreen\]\) \{ display: none !important; \}/)
     expect(VIEW_CSS).toMatch(/@media print \{[\s\S]*#print-view \{ position: static; overflow: hidden; overflow: clip;[^}]*width: 192mm/)
   })
 
@@ -36,5 +36,15 @@ describe('print view layout (Abdullah 18 Nov: log report printed shrunk on iPhon
     expect(isIosNonSafari(ua('FxiOS/142.0'))).toBe(true)
     expect(isIosNonSafari(ua('Version/26.5'))).toBe(false)
     expect(isIosNonSafari({ userAgent: 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0 Safari/537.36' })).toBe(false)
+  })
+})
+
+describe('work frames stay laid out while the print view is open (Abdullah 19 Nov «تداخل»)', () => {
+  it('does not hide off-screen measuring / PDF frames', async () => {
+    const { VIEW_CSS } = await import('../lib/printView.js')
+    expect(VIEW_CSS.match(/body > \*:not\(#print-view\):not\(\[data-pv-offscreen\]\)/g)).toHaveLength(2)
+    const fs = await import('node:fs')
+    expect(fs.readFileSync(new URL('../lib/report/measure.js', import.meta.url), 'utf8')).toMatch(/data-pv-offscreen/)
+    expect(fs.readFileSync(new URL('../lib/report/pdf.js', import.meta.url), 'utf8')).toMatch(/data-pv-offscreen/)
   })
 })
