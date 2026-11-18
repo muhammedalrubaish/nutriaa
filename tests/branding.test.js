@@ -43,7 +43,7 @@ describe('user-visible branding', () => {
     expect(pages.length).toBeGreaterThan(0)
     expect(pages.every((p) => p.includes('class="a4 has-footer"'))).toBe(true)
     expect(pages.join('')).not.toMatch(BRAND)
-    expect(pages.at(-1)).toContain('النظام مملوك فكرياً')
+    expect(pages.join('')).not.toContain('مملوك') // Abdullah 19 Nov: ownership note removed from reports
     expect(REPORT_CSS + SHEET_CSS).not.toMatch(BRAND)
     // Small, centred footer: © line then «صفحة X من Y».
     expect(pages[0]).toMatch(/<div class="rf"><span>© 2026[^<]*<\/span><span class="pg"[^>]*>صفحة 1 من \d+<\/span><\/div>/)
