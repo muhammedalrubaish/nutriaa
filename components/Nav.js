@@ -128,7 +128,7 @@ export default function Nav({ user }) {
           </div>
         </>
       )}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 card border-x-0 border-b-0 backdrop-blur-xl pb-safe" dir="rtl">
+      <nav data-bottom-nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 card border-x-0 border-b-0 backdrop-blur-xl pb-safe" dir="rtl">
         <div className="max-w-6xl mx-auto flex items-stretch justify-around">
           {shown.map((i) => (
             <Tab key={i.href} item={i} active={router.pathname === i.href} />
