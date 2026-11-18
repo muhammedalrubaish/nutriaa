@@ -35,14 +35,14 @@ describe('packTables', () => {
     expect(flat(pages)[0]).toEqual([['a', 0, 2], ['b', 0, 3]])
     expect(flat(pages)[1]).toEqual([['b', 3, 7]])
   })
-  it('keeps the last sheet clear of the copyright note even when all tables fit one sheet', () => {
+  it('keeps an optional last-sheet reserve even when all tables fit one sheet', () => {
     // 2 + 3 rows fill the sheet exactly; the note (6mm) no longer fits, so the last rows move on.
     const pages = packTables([t('a', 2), t('b', 3)], { page: 93, card: 20, gap: 3, tail: 6 })
     const used = (p) => p.reduce((s, seg, j) => s + 20 + (j ? 3 : 0) + seg.rows.length * 10, 0)
     expect(used(pages.at(-1)) + 6).toBeLessThanOrEqual(93)
     expect(pages.flat().filter(s => s.table.key === 'b').reduce((n, s) => n + s.rows.length, 0)).toBe(3)
   })
-  it('reserves the copyright note only on the last sheet', () => {
+  it('reserves the optional tail only on the last sheet', () => {
     expect(flat(packTables([t('a', 16)], { page: 100, card: 20, gap: 3, tail: 6 }))).toEqual([[['a', 0, 8]], [['a', 8, 7]], [['a', 15, 1]]])
     expect(flat(packTables([t('a', 15)], { page: 100, card: 20, gap: 3, tail: 6 }))).toEqual([[['a', 0, 8]], [['a', 8, 7]]])
   })
