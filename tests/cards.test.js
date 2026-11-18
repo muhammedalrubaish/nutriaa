@@ -30,13 +30,13 @@ describe('meal cards', () => {
     expect(CARDS_CSS).toMatch(/\.mcards\{[^}]*grid-template-columns:1fr 1fr[^}]*grid-template-rows:repeat\(4,1fr\)/)
     expect(CARDS_CSS).toMatch(/\.mcard\{[^}]*break-inside:avoid/)
     // A4 sheet short enough for iPhone Safari (≈248mm printable once its URL/date header and footer are
-    // reserved): 194×242mm, so a sheet of 8 cards never spills a sliver page (37 sheets printed as 74),
+    // reserved): 192×242mm (iOS page area measured 192.96mm wide), so a sheet of 8 cards never spills a sliver page (37 sheets printed as 74),
     // yet tall enough that the footer prints near the bottom of the paper (not two-thirds down; 232mm was).
-    expect(PRINT_SHEET).toEqual({ width: '194mm', height: '242mm', footerReserve: '16mm' })
-    expect(SHEET_CSS).toMatch(/\.doc\.print \.a4\{width:194mm;height:242mm;max-height:242mm\}/)
+    expect(PRINT_SHEET).toEqual({ width: '192mm', height: '242mm', footerReserve: '17mm' })
+    expect(SHEET_CSS).toMatch(/\.doc\.print \.a4\{width:192mm;height:242mm;max-height:242mm\}/)
     expect(SHEET_CSS).not.toMatch(/100vh/)
     expect(SHEET_CSS).toMatch(/break-after:page/)
-    expect(SHEET_CSS).toMatch(/\.doc\.print \.a4\.has-footer\{padding-bottom:16mm\}/)
+    expect(SHEET_CSS).toMatch(/\.doc\.print \.a4\.has-footer\{padding-bottom:17mm\}/)
     // Footer pinned to the sheet bottom with ≈6mm under it, so it never touches the edge (Abdullah t243u).
     expect(SHEET_CSS).toMatch(/\.doc \.a4 \.rf\{position:absolute;left:0;right:0;bottom:6mm/)
   })
