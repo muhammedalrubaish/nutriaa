@@ -113,7 +113,8 @@ describe('meal ranking (note 5)', () => {
       { name: 'فاكهة', person_type: 'patient', meal_type: 'optional', n: 4 },
       { name: 'شوربة', person_type: 'companion', meal_type: 'custom', n: 2 },
     ])
-    expect(r.map((m) => [m.name, m.total, m.pct])).toEqual([['فاكهة', 4, 40], ['كبسة', 4, 40], ['شوربة', 2, 20]])
+    // custom meals (شوربة) are left out, shares over the rest (Abdullah 19 Nov)
+    expect(r.map((m) => [m.name, m.total, m.pct])).toEqual([['فاكهة', 4, 50], ['كبسة', 4, 50]])
     expect(r.find((m) => m.name === 'كبسة')).toMatchObject({ patient: 3, companion: 1, mealType: 'main' })
   })
 })

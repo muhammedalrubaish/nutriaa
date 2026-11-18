@@ -68,8 +68,9 @@ export default route({
            group by 1, 2, 3`,
           params,
         ),
-        // Note 12: every meal over all time (a fixed chart, independent of the filters).
-        query(`select btrim(main_meal) as name, count(*)::int as n from orders group by 1 order by 2 desc, 1 limit 30`),
+        // Note 12: every meal over all time (a fixed chart, independent of the filters). Custom (free-text) meals
+        // are left out: temporary, per patient wish (Abdullah 19 Nov).
+        query(`select btrim(main_meal) as name, count(*)::int as n from orders where meal_type is distinct from 'custom' group by 1 order by 2 desc, 1 limit 30`),
         // Note 13: orders entered by each specialist and distributor over all time (accounts with none included).
         query(
           `select u.username, u.name, u.role, count(o.id)::int as n
