@@ -140,10 +140,10 @@ select option {
 
 /* ---- © footer, same as the Cafeteria app (cafeteria/src/index.css «Ownership footer»; components/Footer.js):
    centred © text (may wrap) with «عن النظام» centred on its own line, Cafeteria's size, padding, border and
-   colours. Login / about / desktop: fixed flush to the screen bottom with the iOS safe area, page padded by its
-   measured height, and it never moves (no page rubber-band; pull-to-refresh only moves its own indicator).
-   Phones with the bottom tab bar (Abdullah 19 Nov «فيه مشكله»): NOT fixed — it sits at the end of the page
-   content, above the fixed tab bar, so it never covers content. ---- */
+   colours. Pinned to the screen on every page (Abdullah 19 Nov «ثبت الحقوق في جميع الصفحات بالاسفل»): fixed,
+   never moves on pull-down (no page rubber-band; pull-to-refresh only moves its own indicator). On phones it
+   sits directly above the tab bar (bottom: --nav-real; the nav already has the safe area). Elsewhere it is
+   flush to the bottom with the iOS safe area. Page content is padded by the measured footer + nav heights. ---- */
 html {
   overscroll-behavior-y: none;
 }
@@ -151,17 +151,17 @@ html {
   --footer-h: 1.75rem;
 }
 body {
-  padding-bottom: calc(var(--footer-real, calc(2.6rem + env(safe-area-inset-bottom, 0px))) + 0.5rem);
+  padding-bottom: calc(var(--footer-real, calc(2.6rem + env(safe-area-inset-bottom, 0px))) + var(--nav-real, 0px) + 0.5rem);
 }
-/* Full-height pages (login, spinner…) fill the screen minus the pinned footer, so a short page never scrolls. */
+/* Full-height pages (login, spinner…) fill the screen minus the pinned footer (and tab bar), so a short page never scrolls. */
 .min-h-screen {
-  min-height: calc(100vh - var(--footer-real, 0px) - 0.5rem);
-  min-height: calc(100dvh - var(--footer-real, 0px) - 0.5rem);
+  min-height: calc(100vh - var(--footer-real, 0px) - var(--nav-real, 0px) - 0.5rem);
+  min-height: calc(100dvh - var(--footer-real, 0px) - var(--nav-real, 0px) - 0.5rem);
 }
 .app-footer {
   position: fixed;
   inset-inline: 0;
-  bottom: 0;
+  bottom: var(--nav-real, 0px);
   z-index: 30;
   min-height: var(--footer-h);
   display: flex;
@@ -178,6 +178,10 @@ body {
   border-top: 1px solid #e2e8f0;
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
+}
+/* When sitting on the tab bar, the nav already includes the iOS safe area — don't add it again (a gap would appear). */
+.app-footer[data-on-nav] {
+  padding-bottom: 0.15rem;
 }
 .app-footer-link {
   color: #0f766e;
@@ -197,23 +201,6 @@ body {
 @media (max-width: 400px) {
   .app-footer {
     font-size: 9.5px;
-  }
-}
-/* Pages with the phone tab bar (lg:hidden nav): in normal flow at the end of the page, clear of the fixed nav. */
-@media (max-width: 1023.98px) {
-  html.footer-inflow body {
-    padding-bottom: 0;
-  }
-  html.footer-inflow .min-h-screen {
-    min-height: 100vh;
-  }
-  .app-footer.with-nav {
-    position: static;
-    z-index: auto;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    padding-top: 0.5rem;
-    padding-bottom: calc(var(--nav-real, calc(4.6rem + env(safe-area-inset-bottom, 0px))) + 0.5rem);
   }
 }
 @media print {
