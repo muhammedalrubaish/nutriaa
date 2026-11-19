@@ -138,50 +138,58 @@ select option {
   }
 }
 
-/* ---- © footer: fixed to the screen bottom like the Cafeteria app (components/Footer.js). Small, centred,
-   safe-area aware; sits on top of the phone tab nav when there is one. Content is padded by its measured
-   height so nothing hides under it. No rubber-band on the page itself (pull-to-refresh handles the top). ---- */
+/* ---- © footer, same as the Cafeteria app (cafeteria/src/index.css «Ownership footer»; components/Footer.js):
+   centred © text (may wrap) with «عن النظام» centred on its own line, Cafeteria's size, padding, border and
+   colours. Login / about / desktop: fixed flush to the screen bottom with the iOS safe area, page padded by its
+   measured height, and it never moves (no page rubber-band; pull-to-refresh only moves its own indicator).
+   Phones with the bottom tab bar (Abdullah 19 Nov «فيه مشكله»): NOT fixed — it sits at the end of the page
+   content, above the fixed tab bar, so it never covers content. ---- */
 html {
   overscroll-behavior-y: none;
 }
-/* Room for the fixed footer and, on phones, the tab nav under it (both measured by components/Footer.js). */
-body {
-  padding-bottom: calc(var(--footer-real, calc(2.6rem + env(safe-area-inset-bottom, 0px))) + var(--nav-real, 0px));
+:root {
+  --footer-h: 1.75rem;
 }
-/* Full-height pages (login, spinner…) fill the screen minus the footer, so a short page never scrolls. */
+body {
+  padding-bottom: calc(var(--footer-real, calc(2.6rem + env(safe-area-inset-bottom, 0px))) + 0.5rem);
+}
+/* Full-height pages (login, spinner…) fill the screen minus the pinned footer, so a short page never scrolls. */
 .min-h-screen {
-  min-height: calc(100vh - var(--footer-real, 0px) - var(--nav-real, 0px));
-  min-height: calc(100dvh - var(--footer-real, 0px) - var(--nav-real, 0px));
+  min-height: calc(100vh - var(--footer-real, 0px) - 0.5rem);
+  min-height: calc(100dvh - var(--footer-real, 0px) - 0.5rem);
 }
 .app-footer {
   position: fixed;
   inset-inline: 0;
-  bottom: var(--nav-real, 0px);
+  bottom: 0;
   z-index: 30;
+  min-height: var(--footer-h);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.1rem 0.6rem;
-  padding: 0.2rem max(0.5rem, env(safe-area-inset-left, 0px)) calc(0.2rem + env(safe-area-inset-bottom, 0px)) max(0.5rem, env(safe-area-inset-right, 0px));
+  gap: 0.1rem;
+  padding: 0.15rem max(0.5rem, env(safe-area-inset-left, 0px)) calc(0.15rem + env(safe-area-inset-bottom, 0px)) max(0.5rem, env(safe-area-inset-right, 0px));
   font-size: 10.5px;
-  line-height: 1.35;
+  line-height: 1.3;
   text-align: center;
-  color: rgb(var(--muted));
-  background: rgb(var(--surface) / 0.94);
-  border-top: 1px solid rgb(var(--border));
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-}
-.app-footer[data-on-nav] {
-  padding-bottom: 0.2rem;
+  color: #475569;
+  background: rgb(241 245 249 / 0.94);
+  border-top: 1px solid #e2e8f0;
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
 }
 .app-footer-link {
-  color: #0284c7;
+  color: #0f766e;
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 2px;
   padding: 0.1rem 0.25rem;
+}
+.dark .app-footer {
+  color: #9bbeeb;
+  background: rgb(6 22 55 / 0.94);
+  border-color: #123773;
 }
 .dark .app-footer-link {
   color: #38bdf8;
@@ -189,6 +197,23 @@ body {
 @media (max-width: 400px) {
   .app-footer {
     font-size: 9.5px;
+  }
+}
+/* Pages with the phone tab bar (lg:hidden nav): in normal flow at the end of the page, clear of the fixed nav. */
+@media (max-width: 1023.98px) {
+  html.footer-inflow body {
+    padding-bottom: 0;
+  }
+  html.footer-inflow .min-h-screen {
+    min-height: 100vh;
+  }
+  .app-footer.with-nav {
+    position: static;
+    z-index: auto;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    padding-top: 0.5rem;
+    padding-bottom: calc(var(--nav-real, calc(4.6rem + env(safe-area-inset-bottom, 0px))) + 0.5rem);
   }
 }
 @media print {
