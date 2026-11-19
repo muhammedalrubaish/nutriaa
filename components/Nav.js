@@ -110,7 +110,7 @@ export default function Nav({ user }) {
       {moreOpen && (
         <>
           <button aria-label="إغلاق" className="lg:hidden fixed inset-0 z-30 bg-black/30" onClick={() => setMoreOpen(false)} />
-          <div className="lg:hidden fixed inset-x-2 z-40 card rounded-2xl shadow-2xl p-1.5 grid gap-0.5 bottom-[calc(var(--nav-real,calc(4.6rem+env(safe-area-inset-bottom,0px)))+var(--footer-real,0px))]" role="menu" dir="rtl">
+          <div className="lg:hidden fixed inset-x-2 z-40 card rounded-2xl shadow-2xl p-1.5 grid gap-0.5 bottom-[calc(var(--nav-real,4.6rem)+var(--footer-real,calc(2.6rem+env(safe-area-inset-bottom,0px))))]" role="menu" dir="rtl">
             {more.map((i) => {
               const Icon = i.icon
               const active = router.pathname === i.href
@@ -128,7 +128,7 @@ export default function Nav({ user }) {
           </div>
         </>
       )}
-      <nav data-bottom-nav className="lg:hidden fixed bottom-0 inset-x-0 z-30 card border-x-0 border-b-0 backdrop-blur-xl pb-safe" dir="rtl">
+      <nav data-bottom-nav className="lg:hidden fixed inset-x-0 z-30 card border-x-0 border-b-0 backdrop-blur-xl app-bottom-nav" dir="rtl">
         <div className="max-w-6xl mx-auto flex items-stretch justify-around">
           {shown.map((i) => (
             <Tab key={i.href} item={i} active={router.pathname === i.href} />

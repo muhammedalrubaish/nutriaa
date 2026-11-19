@@ -5,11 +5,10 @@ import { COPYRIGHT } from '@/lib/constants'
 
 // © footer, same markup and look as the Cafeteria app (cafeteria/src/components/Footer.tsx): centred © text and
 // «عن النظام» on its own line. Pinned to the screen on every page (Abdullah 19 Nov «ثبت الحقوق في جميع الصفحات
-// بالاسفل»): position fixed, never scrolls or moves with pull-to-refresh (it lives outside the page content).
-// On phones with the bottom tab bar it sits directly above the tab bar (the nav already has the iOS safe area);
-// elsewhere it is flush to the bottom with the safe-area padding. Measured heights are published as
-// --footer-real / --nav-real so page content is padded and never hidden behind them. Screen only: print and the
-// PDF keep their own footer.
+// بالاسفل» / «خل الحقوق هي اخر شي»): position fixed, flush at the very bottom with the iOS safe area — it is
+// the last thing on the screen. It never scrolls or moves with pull-to-refresh. On phones the tab bar is
+// fixed directly above it. Measured heights are published as --footer-real / --nav-real so page content is
+// padded and never hidden behind them. Screen only: print and the PDF keep their own footer.
 export default function Footer() {
   const { pathname } = useRouter()
   const bar = useRef(null)
@@ -27,7 +26,6 @@ export default function Footer() {
         if (nav) ro?.observe(nav, { box: 'border-box' })
       }
       const navH = nav && getComputedStyle(nav).display !== 'none' ? Math.ceil(nav.getBoundingClientRect().height) : 0
-      el.toggleAttribute('data-on-nav', navH > 0)
       root.style.setProperty('--nav-real', `${navH}px`)
       root.style.setProperty('--footer-real', `${Math.ceil(el.getBoundingClientRect().height)}px`)
     }
