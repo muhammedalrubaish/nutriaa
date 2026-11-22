@@ -30,5 +30,29 @@ self.addEventListener('notificationclick', (event) => {
   )
 })
 
+// The browser rotated or dropped the subscription (expiry, key change): subscribe again with the
+// server's current key and store it, so the phone keeps receiving pushes without a manual toggle.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  event.waitUntil(
+    (async () => {
+      try {
+        const r = await fetch('/api/push/vapid-key')
+        if (!r.ok) return
+        const { publicKey } = await r.json()
+        const pad = '='.repeat((4 - (publicKey.length % 4)) % 4)
+        const raw = atob((publicKey + pad).replace(/-/g, '+').replace(/_/g, '/'))
+        const key = Uint8Array.from([...raw].map((c) => c.charCodeAt(0)))
+        const sub = await self.registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subscription: sub.toJSON() }),
+        })
+      } catch {}
+    })(),
+  )
+})
+
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (e) => e.waitUntil(clients.claim()))
