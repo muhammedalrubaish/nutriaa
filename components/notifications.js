@@ -260,6 +260,48 @@ function urlBase64ToUint8Array(s) {
   return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)))
 }
 
+const postSubscription = (sub) =>
+  fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ subscription: sub.toJSON() }),
+  })
+
+const sameKey = (a, b) => {
+  if (!a || !b || a.byteLength !== b.byteLength) return false
+  const x = new Uint8Array(a)
+  return b.every((v, i) => v === x[i])
+}
+
+/**
+ * Keeps this phone's push subscription in step with the server on every load. The phone can show
+ * «subscribed» while the server has no row for it (row deleted after a 404/410, database restored or moved,
+ * account re-logged) or while it was made with an old VAPID key (keys rotated: every send fails with 403).
+ * In both cases nothing ever arrives. So: if the key differs, subscribe again with the current key; then
+ * re-save the subscription (an upsert, harmless when it already exists). Returns the live subscription or null.
+ */
+export async function syncSubscription(reg, publicKey) {
+  let sub = await reg.pushManager.getSubscription()
+  if (!sub) return null
+  if (Notification.permission !== 'granted') return sub
+  const key = urlBase64ToUint8Array(publicKey)
+  const current = sub.options?.applicationServerKey
+  // Only when the browser reports the key and it really differs. iOS may refuse subscribe() without a tap;
+  // then return null so the toggle shows «تفعيل» and one tap fixes it.
+  if (current && !sameKey(current, key)) {
+    try {
+      await sub.unsubscribe()
+    } catch {}
+    try {
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key })
+    } catch {
+      return null
+    }
+  }
+  await postSubscription(sub).catch(() => {})
+  return sub
+}
+
 export function PushToggle() {
   const [state, setState] = useState('loading')
   const [busy, setBusy] = useState(false)
@@ -274,13 +316,22 @@ export function PushToggle() {
       return
     }
     // Hide the toggle when the server has no VAPID keys configured.
-    fetch('/api/push/vapid-key')
-      .then((r) => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const r = await fetch('/api/push/vapid-key')
         if (!r.ok) throw new Error('push disabled')
-        return navigator.serviceWorker.ready
-      })
-      .then((reg) => reg.pushManager.getSubscription().then((s) => setState(s ? 'subscribed' : 'unsubscribed')))
-      .catch(() => setState('unsupported'))
+        const { publicKey } = await r.json()
+        const reg = await navigator.serviceWorker.ready
+        const sub = await syncSubscription(reg, publicKey)
+        if (!cancelled) setState(sub ? 'subscribed' : 'unsubscribed')
+      } catch {
+        if (!cancelled) setState('unsupported')
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const subscribe = async () => {
@@ -296,11 +347,8 @@ export function PushToggle() {
       const { publicKey } = await r.json()
       const reg = await navigator.serviceWorker.ready
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) })
-      await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription: sub.toJSON() }),
-      })
+      const saved = await postSubscription(sub)
+      if (!saved.ok) throw new Error(`subscribe save failed ${saved.status}`)
       setState('subscribed')
     } catch (e) {
       console.error('push subscribe error', e)
