@@ -101,7 +101,7 @@ describe('meal cards', () => {
 
   it('QA round 2: long text shrinks the card (--s) instead of being cut; short cards keep full size', () => {
     // Optional short cards are unchanged and stay at full size. Main cards reserve a little
-    // room for the 10-line mark below the meal, so they stay near full size.
+    // room for the 20-line mark below the meal, so they stay near full size.
     expect(cardScale(order(1, { mealType: 'optional' }))).toBe(1)
     expect(cardHtml(order(1, { mealType: 'optional' }), 'قسم')).toContain('style="--s:1"')
     expect(cardScale(order(1))).toBeGreaterThanOrEqual(0.9)
@@ -133,9 +133,9 @@ describe('meal cards', () => {
     expect(ok.style.v).toBe('1')
   })
 
-  it('draws exactly 10 diagonal lines below the meal/note and above the footer on main cards only', () => {
-    expect(MAIN_STRIPE_COUNT).toBe(10)
-    expect(MAIN_STRIPE_W_MM).toBe(50)
+  it('draws exactly 20 diagonal lines below the meal/note and above the footer on main cards only', () => {
+    expect(MAIN_STRIPE_COUNT).toBe(20)
+    expect(MAIN_STRIPE_W_MM).toBe(80)
     expect(MAIN_STRIPE_H_MM).toBe(4.5)
     const main = cardHtml(order(0, { mealType: 'main' }), 'قسم')
     const shortMain = cardHtml(order(1, { mealType: 'main', notes: '' }), 'قسم')
@@ -149,18 +149,18 @@ describe('meal cards', () => {
     expect(main).toContain('data-meal="main"')
     expect(main).toContain('class="mcard-after"')
     expect(main).toContain('class="mcard-stripes"')
-    expect(main).toContain('width="50mm"')
+    expect(main).toContain('width="80mm"')
     expect(main).toContain('height="4.5mm"')
-    expect(main).toContain('viewBox="0 0 50 4.5"')
+    expect(main).toContain('viewBox="0 0 80 4.5"')
     expect(main).toContain('stroke="#777"')
     expect(main).toContain('stroke-width="0.4"')
-    expect(countLines(main)).toBe(10)
-    // Same 10-line SVG on every main card; it sits after the meal/note and before the footer.
+    expect(countLines(main)).toBe(20)
+    // Same 20-line SVG on every main card; it sits after the meal/note and before the footer.
     expect(stripeSvg(shortMain)).toBe(stripeSvg(longMain))
     expect(stripeSvg(noted)).toBe(stripeSvg(shortMain))
-    expect(countLines(shortMain)).toBe(10)
-    expect(countLines(noted)).toBe(10)
-    expect(countLines(longMain)).toBe(10)
+    expect(countLines(shortMain)).toBe(20)
+    expect(countLines(noted)).toBe(20)
+    expect(countLines(longMain)).toBe(20)
     expect(noted.indexOf('بدون ملح')).toBeLessThan(noted.indexOf('mcard-stripes'))
     expect(noted.indexOf('mcard-stripes')).toBeLessThan(noted.indexOf('class="foot"'))
     expect(shortMain.indexOf('class="meal"')).toBeLessThan(shortMain.indexOf('mcard-stripes'))
@@ -174,10 +174,10 @@ describe('meal cards', () => {
     expect(custom).not.toContain('mcard-after')
     expect(countLines(custom)).toBe(0)
     expect(unknown).toContain('data-meal="main"')
-    expect(countLines(unknown)).toBe(10)
+    expect(countLines(unknown)).toBe(20)
     expect(CARDS_CSS).not.toMatch(/repeating-linear-gradient/)
     expect(CARDS_CSS).not.toMatch(/\.mcard\[data-meal="main"\] \.name,[^}]*background:#fff/)
-    expect(CARDS_CSS).toMatch(/\.mcard-stripes\{[^}]*width:50mm;height:4\.5mm/)
+    expect(CARDS_CSS).toMatch(/\.mcard-stripes\{[^}]*width:80mm;height:4\.5mm/)
     expect(CARDS_CSS).toMatch(/\.mcard-after\{[^}]*margin-top:auto/)
     expect(CARDS_CSS).toMatch(/-webkit-print-color-adjust:exact/)
     expect(CARDS_CSS).toMatch(/print-color-adjust:exact/)
@@ -186,18 +186,21 @@ describe('meal cards', () => {
     expect(CARDS_CSS).toMatch(/\.mcard \.meal\{[^}]*background:#f1f5f9/)
   })
 
-  it('prints «الوجبة الأساسية» and «الوجبة الاختيارية» in bold on the pill and the meal label', () => {
-    expect(CARDS_CSS).toMatch(/\.mcard\[data-meal="main"\] \.tag,\.mcard\[data-meal="optional"\] \.tag,\.mcard\[data-meal="main"\] \.meal small,\.mcard\[data-meal="optional"\] \.meal small\{font-weight:700\}/)
-    const main = cardHtml(order(0, { mealType: 'main' }), 'قسم')
+  it('prints meal-type labels and notes in bold, slightly larger, on every card', () => {
+    expect(CARDS_CSS).toMatch(/\.mcard \.tag,\.mcard \.meal small\{font-weight:700\}/)
+    expect(CARDS_CSS).toMatch(/\.mcard \.tag\{[^}]*font-size:11pt/)
+    expect(CARDS_CSS).toMatch(/\.mcard \.meal small\{font-size:calc\(11pt \* var\(--s\)\)/)
+    expect(CARDS_CSS).toMatch(/\.mcard \.note\{[^}]*font-weight:700;font-size:calc\(12\.5pt \* var\(--s\)\)/)
+    const main = cardHtml(order(0, { mealType: 'main', notes: 'بدون ملح' }), 'قسم')
     const optional = cardHtml(order(1, { mealType: 'optional' }), 'قسم')
     const custom = cardHtml(order(2, { mealType: 'custom' }), 'قسم')
     expect(main.match(/class="tag">[^<]+</)[0]).toContain('الوجبة الأساسية')
     expect(main).toContain('<small style="color:#15803d">الوجبة الأساسية</small>')
+    expect(main).toContain('<div class="note">بدون ملح</div>')
     expect(optional.match(/class="tag">[^<]+</)[0]).toContain('الوجبة الاختيارية')
     expect(optional).toContain('<small style="color:#0284c7">الوجبة الاختيارية</small>')
-    // Custom label is unchanged (not part of this request).
-    expect(custom).toContain('وجبة مخصصة')
-    expect(CARDS_CSS).not.toMatch(/data-meal="custom"\][^{]*font-weight:700/)
+    expect(custom.match(/class="tag">[^<]+</)[0]).toContain('وجبة مخصصة')
+    expect(custom).toContain('<small style="color:#7c3aed">وجبة مخصصة</small>')
   })
 })
 
