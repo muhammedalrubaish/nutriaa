@@ -129,5 +129,30 @@ describe('meal cards', () => {
     expect(Number(never.style.v)).toBe(MIN_CARD_SCALE)
     expect(ok.style.v).toBe('1')
   })
+
+  it('adds a printable gray stripe background on basic/main meal cards only', () => {
+    const main = cardHtml(order(0, { mealType: 'main' }), 'قسم')
+    const optional = cardHtml(order(1, { mealType: 'optional' }), 'قسم')
+    const custom = cardHtml(order(2, { mealType: 'custom' }), 'قسم')
+    const unknown = cardHtml(order(3, { mealType: undefined }), 'قسم')
+    expect(main).toContain('data-meal="main"')
+    expect(main).toContain('class="mcard-stripes"')
+    expect(main).toContain('id="mcard-main-stripes"')
+    expect(optional).toContain('data-meal="optional"')
+    expect(optional).not.toContain('mcard-stripes')
+    expect(custom).toContain('data-meal="custom"')
+    expect(custom).not.toContain('mcard-stripes')
+    // Unknown types are labelled as the basic meal (existing fallback) and get stripes too.
+    expect(unknown).toContain('data-meal="main"')
+    expect(unknown).toContain('class="mcard-stripes"')
+    expect(CARDS_CSS).toMatch(/repeating-linear-gradient\(-45deg,#fff 0 4px,#999 4px 8px\)/)
+    expect(CARDS_CSS).toMatch(/-webkit-print-color-adjust:exact/)
+    expect(CARDS_CSS).toMatch(/print-color-adjust:exact/)
+    expect(CARDS_CSS).toMatch(/\.mcard\[data-meal="main"\] \.name,\.mcard\[data-meal="main"\] \.row,\.mcard\[data-meal="main"\] \.note,\.mcard\[data-meal="main"\] \.foot\{background:#fff/)
+    // Optional / custom typography, colours and meal-box fill stay exactly as they were.
+    expect(optional).toContain('background:#0284c7')
+    expect(custom).toContain('background:#7c3aed')
+    expect(CARDS_CSS).toMatch(/\.mcard \.meal\{[^}]*background:#f1f5f9/)
+  })
 })
 
