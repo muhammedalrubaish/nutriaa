@@ -1,6 +1,6 @@
 // Notes 1, 2, 14: printed meal cards — cards8 layout, 8 per A4 page, PATIENT / MORAFEQ, no author or date.
 import { describe, it, expect } from 'vitest'
-import { CARDS_CSS, CARDS_PER_PAGE, MIN_CARD_SCALE, cardHtml, cardPages, cardScale, fitCards } from '@/lib/report/cards'
+import { CARDS_CSS, CARDS_PER_PAGE, MAIN_STRIPE_COUNT, MIN_CARD_SCALE, cardHtml, cardPages, cardScale, fitCards } from '@/lib/report/cards'
 import { PRINT_SHEET, SHEET_CSS } from '@/lib/report/doc'
 
 const DEPTS = {
@@ -130,29 +130,57 @@ describe('meal cards', () => {
     expect(ok.style.v).toBe('1')
   })
 
-  it('adds a printable gray stripe background on basic/main meal cards only', () => {
+  it('draws exactly 10 fixed mid-card diagonal lines on basic/main meal cards only', () => {
+    expect(MAIN_STRIPE_COUNT).toBe(10)
     const main = cardHtml(order(0, { mealType: 'main' }), 'قسم')
-    const optional = cardHtml(order(1, { mealType: 'optional' }), 'قسم')
-    const custom = cardHtml(order(2, { mealType: 'custom' }), 'قسم')
-    const unknown = cardHtml(order(3, { mealType: undefined }), 'قسم')
+    const shortMain = cardHtml(order(1, { mealType: 'main', notes: '' }), 'قسم')
+    const longMain = cardHtml(order(2, { mealType: 'main', notes: 'حساسية من المكسرات وبدون ملح وبدون سكر، '.repeat(6) }), 'قسم')
+    const optional = cardHtml(order(3, { mealType: 'optional' }), 'قسم')
+    const custom = cardHtml(order(4, { mealType: 'custom' }), 'قسم')
+    const unknown = cardHtml(order(5, { mealType: undefined }), 'قسم')
+    const countLines = (html) => (html.match(/<line\b/g) || []).length
     expect(main).toContain('data-meal="main"')
     expect(main).toContain('class="mcard-stripes"')
-    expect(main).toContain('id="mcard-main-stripes"')
+    expect(main).toContain('width="54mm"')
+    expect(main).toContain('height="30mm"')
+    expect(main).toContain('viewBox="0 0 54 30"')
+    expect(main).toContain('stroke="#888"')
+    expect(countLines(main)).toBe(10)
+    // Same 10-line SVG on every main card, regardless of how tall the content is.
+    expect(shortMain.match(/<svg[\s\S]*?<\/svg>/)[0]).toBe(longMain.match(/<svg[\s\S]*?<\/svg>/)[0])
+    expect(countLines(shortMain)).toBe(10)
+    expect(countLines(longMain)).toBe(10)
     expect(optional).toContain('data-meal="optional"')
     expect(optional).not.toContain('mcard-stripes')
+    expect(countLines(optional)).toBe(0)
     expect(custom).toContain('data-meal="custom"')
     expect(custom).not.toContain('mcard-stripes')
-    // Unknown types are labelled as the basic meal (existing fallback) and get stripes too.
+    expect(countLines(custom)).toBe(0)
     expect(unknown).toContain('data-meal="main"')
-    expect(unknown).toContain('class="mcard-stripes"')
-    expect(CARDS_CSS).toMatch(/repeating-linear-gradient\(-45deg,#fff 0 4px,#999 4px 8px\)/)
+    expect(countLines(unknown)).toBe(10)
+    expect(CARDS_CSS).not.toMatch(/repeating-linear-gradient/)
+    expect(CARDS_CSS).toMatch(/\.mcard-stripes\{[^}]*width:54mm;height:30mm/)
+    expect(CARDS_CSS).toMatch(/left:50%;top:50%;transform:translate\(-50%,-50%\)/)
     expect(CARDS_CSS).toMatch(/-webkit-print-color-adjust:exact/)
     expect(CARDS_CSS).toMatch(/print-color-adjust:exact/)
     expect(CARDS_CSS).toMatch(/\.mcard\[data-meal="main"\] \.name,\.mcard\[data-meal="main"\] \.row,\.mcard\[data-meal="main"\] \.note,\.mcard\[data-meal="main"\] \.foot\{background:#fff/)
-    // Optional / custom typography, colours and meal-box fill stay exactly as they were.
     expect(optional).toContain('background:#0284c7')
     expect(custom).toContain('background:#7c3aed')
     expect(CARDS_CSS).toMatch(/\.mcard \.meal\{[^}]*background:#f1f5f9/)
+  })
+
+  it('prints «الوجبة الأساسية» and «الوجبة الاختيارية» in bold on the pill and the meal label', () => {
+    expect(CARDS_CSS).toMatch(/\.mcard\[data-meal="main"\] \.tag,\.mcard\[data-meal="optional"\] \.tag,\.mcard\[data-meal="main"\] \.meal small,\.mcard\[data-meal="optional"\] \.meal small\{font-weight:700\}/)
+    const main = cardHtml(order(0, { mealType: 'main' }), 'قسم')
+    const optional = cardHtml(order(1, { mealType: 'optional' }), 'قسم')
+    const custom = cardHtml(order(2, { mealType: 'custom' }), 'قسم')
+    expect(main.match(/class="tag">[^<]+</)[0]).toContain('الوجبة الأساسية')
+    expect(main).toContain('<small style="color:#15803d">الوجبة الأساسية</small>')
+    expect(optional.match(/class="tag">[^<]+</)[0]).toContain('الوجبة الاختيارية')
+    expect(optional).toContain('<small style="color:#0284c7">الوجبة الاختيارية</small>')
+    // Custom label is unchanged (not part of this request).
+    expect(custom).toContain('وجبة مخصصة')
+    expect(CARDS_CSS).not.toMatch(/data-meal="custom"\][^{]*font-weight:700/)
   })
 })
 
