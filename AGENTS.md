@@ -6,10 +6,10 @@
 - **ما هو:** نظام طلبات وجبات المرضى والمرافقين لـ«قسم خدمات التغذية» في «مستشفى الولادة والأطفال ببريدة» (`APP_TITLE` و`APP_SUBTITLE` في `lib/constants.js`): إدخال الطلبات، طباعة بطاقات الوجبات، لوحة المؤشرات والتقارير، القائمة الأسبوعية، الملاحظات، وإشعارات الجوال (Web Push).
 - **الإنتاج:** https://nutriaa.vercel.app — المستودع `muhammedalrubaish/nutriaa`.
 - **الأدوار** (`lib/roles.js`، من الأعلى): `sysadmin` مدير النظام (حساب واحد فقط، فهرس فريد) ← `manager` مدير ← `supervisor` مشرف ← `specialist` أخصائية / `distributor` موظفة موزّعة (نفس الرتبة). كل مستخدم يدير فقط من هم أقل منه رتبة (`canManageUser`، ويُفرض في `/api/users`). الصلاحيات في `PERMS` (`create_orders`, `view_dashboard`, `view_reports`, `export_reports`, `delete_orders`, `manage_users`, `edit_menu`, `send_notes`).
-- **التقنيات:** Next.js 15 (Pages Router) + React 18 + JavaScript (`jsconfig.json`، alias `@/`) + Tailwind 3 (`darkMode: 'class'`) + framer-motion + lucide-react + خط Cairo محلي (`public/fonts`). قاعدة Postgres على Supabase عبر `pg` من الخادم فقط. PDF: html2canvas-pro + jsPDF. Excel: exceljs. الإشعارات: web-push + `public/sw.js`.
+- **التقنيات:** Next.js 15.5.28 (Pages Router) + React 18 + JavaScript (`jsconfig.json`، alias `@/`) + Tailwind 3 (`darkMode: 'class'`) + framer-motion + lucide-react + خط Cairo محلي (`public/fonts`). قاعدة Postgres على Supabase عبر `pg` من الخادم فقط. PDF: html2canvas-pro + jsPDF. Excel: exceljs. الإشعارات: web-push + `public/sw.js`.
 - **هيكل المجلدات:**
   - `pages/` الشاشات (`index`, `orders`, `list`, `menu`, `departments`, `import`, `users`, `login`, `about`) و`pages/api/` (كل الوصول للقاعدة، و`api/push/*`، و`api/app-version`، و`api/version` للتحديث اللحظي).
-  - `components/` (`Nav`, `Footer`, `PullToRefresh`, `notifications`, `BedMap` …).
+  - `components/` (`Nav`, `Footer`, `PullToRefresh`, `notifications`, `BedMap`, `MealLibraryManager` …).
   - `lib/` المنطق المشترك (`db.js` اتصال الخادم، `session.js`، `roles.js`، `orderRules.js`، `stats.js`، `push.js`، `printView.js`، `xlsx.js` فيه `saveFile`، `time.js` بتوقيت `Asia/Riyadh`) و`lib/report/` (بطاقات وتقارير A4 وPDF).
   - `db/migrations/` ملفات SQL، `deploy/` سكربتات إطلاق/تراجع على قاعدة الإنتاج + `DEPLOY-PLAN.md`، `scripts/` (migrate, create-admin)، `tests/` (vitest).
 
@@ -36,6 +36,7 @@ npm run db:create-admin  # ⚠️ يكتب في القاعدة (مدير الن�
 
 ## 4) متغيرات البيئة (أسماء فقط)
 `DATABASE_URL`, `SESSION_SECRET`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `ADMIN_NAME` (للسكربت المحلي فقط)، و`VERCEL_GIT_COMMIT_SHA` / `NEXT_PUBLIC_APP_VERSION` (رقم النسخة). القالب في `.env.example`.
+`VAPID_SUBJECT` يجب أن يكون `mailto:` أو `https:` (آبل ترفض غير ذلك؛ القيمة غير الصالحة تُستبدل برابط التطبيق في `lib/push.js`).
 **لا تطبع ولا ترفع** `.env` أو `.env.local` أو أي ملف حسابات/أسرار، ولا تكتب أي قيمة في الكود أو الـPR.
 
 ## 5) قواعد عبدالله الثابتة
@@ -47,7 +48,11 @@ npm run db:create-admin  # ⚠️ يكتب في القاعدة (مدير الن�
   - الفوتر (`components/Footer.js`): سطر الحقوق ثم رابط «عن النظام»، مثبّت أسفل الشاشة في كل الصفحات وهو آخر شيء على الشاشة، وشريط التبويبات فوقه مباشرة (اختبار `tests/fixedFooter.test.js`).
   - صفحة `/about` (`pages/about.js`، عامة بدون دخول): «ما هو النظام؟» ← «الملكية الفكرية» ← «الحقوق».
 - **الملكية:** النظام ملك عبدالله الربيش (أخصائي تغذية) وليس المستشفى؛ البيانات التشغيلية فقط تخص جهة العمل.
-- **الطباعة:** A4 وبنفس الشكل من الجوال، ولا ينقسم أي صف أو بطاقة بين صفحتين (`break-inside: avoid`، وتوزيع الجداول بالقياس `lib/report/measure.js` / `packTables`).
+- **الطباعة:** A4 وبنفس الشكل من الجوال، ولا ينقسم أي صف أو بطاقة بين صفحتين (`break-inside: avoid` / `page-break-inside: avoid`، وتوزيع الجداول بالقياس `lib/report/measure.js` / `packTables`). مقاس ورقة الطباعة الأساسي 192×242mm (`PRINT_SHEET` في `lib/report/doc.js`) ليناسب منطقة طباعة سفاري على الآيفون.
+- **بطاقات الوجبات** (`lib/report/cards.js`، الاختبارات في `tests/cards.test.js`): 8 بطاقات أفقية في كل صفحة A4 (4 صفوف × 2)، صفحات من 8 بطاقات حتى لا تنقسم بطاقة (سفاري يتجاهل `break-inside` على عناصر الـgrid). الترتيب: القسم ثم الغرفة ثم السرير. نوع الوجبة من `order.mealType` (`main` / `optional` / `custom`؛ النوع غير المعروف يُعامل كأساسية). البطاقة لا تُظهر من أدخل الطلب ولا التاريخ/الوقت، وتطبع النوع `PATIENT` / `MORAFEQ`. صُممت للتمييز على طابعة أبيض وأسود، **ولا تُغيَّر ألوان البطاقة** (رأس الأساسية `#15803d`، الاختيارية `#0284c7`، المخصصة `#7c3aed`).
+  - الوجبة الأساسية فقط: 20 خطاً مائلاً رفيعاً (`#777`، سُمك 0.4mm) داخل SVG ثابت 80×4.5mm في المساحة البيضاء تحت صندوق الوجبة (وتحت الملاحظة إن وُجدت) وفوق التذييل، في وسط العرض، مع `print-color-adjust: exact`. إذا ضاق المكان يُنقَص ارتفاع الكتلة (حتى 3mm) لا عدد الخطوط. الاختيارية والمخصصة بدون خطوط.
+  - تسميات النوع («الوجبة الأساسية»، «الوجبة الاختيارية»، «وجبة مخصصة») بخط عريض 11pt في حبة الرأس والتسمية الصغيرة فوق نص الوجبة؛ الملاحظات بخط عريض 12.5pt.
+  - النص لا يُقصّ أبدًا (الحساسية مثلاً يجب ألا تضيع): النص الطويل يلتف، ثم يُصغَّر جسم البطاقة (`--s` عبر `cardScale` ثم `fitCards` بعد تحميل الخط) حتى يدخل في المقاس الثابت. لا `ellipsis` ولا `line-clamp`.
 - **لا صفحة ولا تبويب جديد في الطباعة والتصدير:** عرض A4 داخل نفس الصفحة (`lib/printView.js`) و`window.print`؛ PDF/Excel كـBlob عبر `saveFile` (`navigator.share({ files })` مع بديل تنزيل). ممنوع `window.open` و`target="_blank"`.
 - **لا نشر ولا تعديل على القاعدة الحية بدون موافقة عبدالله الصريحة.**
 - **قواعد خاصة بنيوتريا:**
